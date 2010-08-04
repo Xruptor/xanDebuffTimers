@@ -126,6 +126,14 @@ function f:PLAYER_FOCUS_CHANGED()
 	end
 end
 
+local eventSwitch = {
+	["SPELL_AURA_APPLIED"] = true,
+	["SPELL_AURA_REMOVED"] = true,
+	["SPELL_AURA_REFRESH"] = true,
+	["SPELL_AURA_APPLIED_DOSE"] = true,
+	["SPELL_AURA_APPLIED_REMOVED_DOSE"] = true,
+}
+
 function f:COMBAT_LOG_EVENT_UNFILTERED(event, timestamp, eventType, srcGUID, srcName, srcFlags, dstGUID, dstName, dstFlags, spellID, spellName, spellSchool, auraType, amount)
 
     if eventType == "UNIT_DIED" or eventType == "UNIT_DESTROYED" then
@@ -141,7 +149,7 @@ function f:COMBAT_LOG_EVENT_UNFILTERED(event, timestamp, eventType, srcGUID, src
 			focusGUID = 0
 		end
 		
-	elseif eventType == "SPELL_AURA_APPLIED" or eventType == "SPELL_AURA_REMOVED" or eventType == "SPELL_AURA_REFRESH" and band(srcFlags, COMBATLOG_OBJECT_AFFILIATION_MINE) ~= 0 then
+	elseif eventSwitch[eventType] and band(srcFlags, COMBATLOG_OBJECT_AFFILIATION_MINE) ~= 0 then
 		--process the spells based on GUID
 		if dstGUID == targetGUID then
 			f:ProcessDebuffs("target", timers)
