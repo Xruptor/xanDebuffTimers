@@ -153,11 +153,11 @@ function f:COMBAT_LOG_EVENT_UNFILTERED(event, timestamp, eventType, srcGUID, src
 		--process the spells based on GUID
 		if dstGUID == targetGUID then
 			f:ProcessDebuffs("target", timers)
-		elseif dstGUID == focusGUID then
+		end
+		if dstGUID == focusGUID then
 			f:ProcessDebuffs("focus", timersFocus)
 		end
     end
-	
 end
 
 ----------------------
@@ -454,26 +454,28 @@ function f:RestoreLayout(frame)
 			["relativePoint"] = "CENTER",
 			["PosX"] = 0,
 			["PosY"] = 0,
+			["firsttime"] = true,
 		}
-		opt = XDT_DB[frame];
+		opt = XDT_DB[frame]
 	end
 
 	local x = opt.PosX;
 	local y = opt.PosY;
-	local s = f:GetEffectiveScale();
+	local s = f:GetEffectiveScale()
 
-	if not x or not y then
-		f:ClearAllPoints();
-		f:SetPoint("CENTER", UIParent, "CENTER", 0, 0);
+	if not x or not y or opt.firsttime then
+		f:ClearAllPoints()
+		f:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+		if opt.firsttime then opt.firsttime = nil end
 		return 
 	end
 
 	--calculate the scale
-	x,y = x/s,y/s;
+	x,y = x/s, y/s
 
 	--set the location
-	f:ClearAllPoints();
-	f:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x, y);
+	f:ClearAllPoints()
+	f:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x, y)
 
 end
 
