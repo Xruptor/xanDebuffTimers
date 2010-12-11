@@ -13,6 +13,11 @@ local focusGUID = 0
 local UnitAura = UnitAura
 local UnitIsUnit = UnitIsUnit
 
+local pointT = {
+	["target"] = "XDT_Anchor",
+	["focus"] = "XDT_FocusAnchor",
+}
+
 local f = CreateFrame("frame","XanDebuffTimers",UIParent)
 f:SetScript("OnEvent", function(self, event, ...) if self[event] then return self[event](self, event, ...) end end)
 
@@ -241,6 +246,7 @@ local TimerOnUpdate = function(self, time)
 
 		local beforeEnd = self.endTime - GetTime()
 		local barLength = ceil( string.len(BAR_TEXT) * (beforeEnd / self.durationTime) )
+		--check the string length JUST in case for errors
 		if barLength > string.len(BAR_TEXT) then barLength = string.len(BAR_TEXT) end
 
 		if barLength <= 0 then
@@ -344,12 +350,25 @@ function f:ProcessDebuffs(sT, sdTimer)
 end
 
 function f:ClearDebuffs(sdTimer)
+	local adj = 0
+
 	for i=1, MAX_TIMERS do
 		if sdTimer[i].active then
 			sdTimer[i].active = false
 		end
+		--reset the order
+		if XDT_DB.grow then
+			sdTimer[i]:ClearAllPoints()
+			sdTimer[i]:SetPoint("TOPLEFT", pointT[sdTimer[i].id], "BOTTOMRIGHT", 0, adj)
+		else
+			sdTimer[i]:ClearAllPoints()
+			sdTimer[i]:SetPoint("BOTTOMLEFT",  pointT[sdTimer[i].id], "TOPRIGHT", 0, (adj * -1))
+		end
+		adj = adj - BAR_ADJUST
+
 		if sdTimer[i]:IsVisible() then sdTimer[i]:Hide() end
 	end
+	
 end
 
 function f:ArrangeDebuffs(throttle, id)
@@ -363,51 +382,72 @@ function f:ArrangeDebuffs(throttle, id)
 	end
 
 	local adj = 0
-	local active = {}
-	local pointT
 	local sdTimer
 	
 	if id == "target" then
 		sdTimer = timers
-		pointT = "XDT_Anchor"
 	elseif id == "focus" then
 		sdTimer = timersFocus
-		pointT = "XDT_FocusAnchor"
 	else
 		return
 	end
 	
-    for i=1, MAX_TIMERS do
-        if sdTimer[i].active then
-            table.insert(active, sdTimer[i])
-		else
-			break
-        end
-    end
-	
-	--sort by the size of the progressbar... duh
 	if XDT_DB.grow then
+		--bars will grow down
 		if XDT_DB.sort then
-			table.sort(active, function(a,b) return (a.tmpBL < b.tmpBL) end)
+			--sort from shortest to longest
+			table.sort(sdTimer, function(a,b)
+				if a.active == true and b.active == false then
+					return true;
+				elseif a.active and b.active then
+					return (a.tmpBL < b.tmpBL);
+				end
+				return false;
+			end)
 		else
-			table.sort(active, function(a,b) return (a.tmpBL > b.tmpBL) end)
+			--sort from longest to shortest
+			table.sort(sdTimer, function(a,b)
+				if a.active == true and b.active == false then
+					return true;
+				elseif a.active and b.active then
+					return (a.tmpBL > b.tmpBL);
+				end
+				return false;
+			end)
 		end
 	else
+		--bars will grow up
 		if XDT_DB.sort then
-			table.sort(active, function(a,b) return (a.tmpBL > b.tmpBL) end)
+			--sort from shortest to longest
+			table.sort(sdTimer, function(a,b)
+				if a.active == true and b.active == false then
+					return true;
+				elseif a.active and b.active then
+					return (a.tmpBL > b.tmpBL);
+				end
+				return false;
+			end)
 		else
-			table.sort(active, function(a,b) return (a.tmpBL < b.tmpBL) end)
+			--sort from longest to shortest
+			table.sort(sdTimer, function(a,b)
+				if a.active == true and b.active == false then
+					return true;
+				elseif a.active and b.active then
+					return (a.tmpBL < b.tmpBL);
+				end
+				return false;
+			end)
 		end
 	end
 
 	--rearrange order
-	for i=1, #active do
+	for i=1, #sdTimer do
 		if XDT_DB.grow then
-			active[i]:ClearAllPoints()
-			active[i]:SetPoint("TOPLEFT", pointT, "BOTTOMRIGHT", 0, adj)
+			sdTimer[i]:ClearAllPoints()
+			sdTimer[i]:SetPoint("TOPLEFT", pointT[sdTimer[i].id], "BOTTOMRIGHT", 0, adj)
 		else
-			active[i]:ClearAllPoints()
-			active[i]:SetPoint("BOTTOMLEFT", pointT, "TOPRIGHT", 0, (adj * -1))
+			sdTimer[i]:ClearAllPoints()
+			sdTimer[i]:SetPoint("BOTTOMLEFT", pointT[sdTimer[i].id], "TOPRIGHT", 0, (adj * -1))
 		end
 		adj = adj - BAR_ADJUST
     end

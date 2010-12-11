@@ -2,7 +2,7 @@
 ## Title: XanDebuffTimers
 ## Notes: A small text based progress bar system for target debuffs.
 ## Author: Xanthos
-## Version: 2.0
+## Version: 2.1
 ## SavedVariablesPerCharacter: XDT_DB
 
 XanDebuffTimers.lua
