@@ -18,7 +18,7 @@ local pointT = {
 	["focus"] = "XDT_FocusAnchor",
 }
 
-local f = CreateFrame("frame","XanDebuffTimers",UIParent)
+local f = CreateFrame("frame","xanDebuffTimers",UIParent)
 f:SetScript("OnEvent", function(self, event, ...) if self[event] then return self[event](self, event, ...) end end)
 
 ----------------------
@@ -75,40 +75,40 @@ function f:PLAYER_LOGIN()
 							timers[i]:SetScale(tonumber(scalenum))
 							timersFocus[i]:SetScale(tonumber(scalenum))
 						end
-						DEFAULT_CHAT_FRAME:AddMessage("XanDebuffTimers: Scale has been set to ["..tonumber(scalenum).."]")
+						DEFAULT_CHAT_FRAME:AddMessage("xanDebuffTimers: Scale has been set to ["..tonumber(scalenum).."]")
 						return true
 					end
 				end
 			elseif c and c:lower() == "grow" then
 				if XDT_DB.grow then
 					XDT_DB.grow = false
-					DEFAULT_CHAT_FRAME:AddMessage("XanDebuffTimers: Bars will now grow [|cFF99CC33UP|r]")
+					DEFAULT_CHAT_FRAME:AddMessage("xanDebuffTimers: Bars will now grow [|cFF99CC33UP|r]")
 				else
 					XDT_DB.grow = true
-					DEFAULT_CHAT_FRAME:AddMessage("XanDebuffTimers: Bars will now grow [|cFF99CC33DOWN|r]")
+					DEFAULT_CHAT_FRAME:AddMessage("xanDebuffTimers: Bars will now grow [|cFF99CC33DOWN|r]")
 				end
 				return true
 			elseif c and c:lower() == "sort" then
 				if XDT_DB.sort then
 					XDT_DB.sort = false
-					DEFAULT_CHAT_FRAME:AddMessage("XanDebuffTimers: Bars sort [|cFF99CC33DESCENDING|r]")
+					DEFAULT_CHAT_FRAME:AddMessage("xanDebuffTimers: Bars sort [|cFF99CC33DESCENDING|r]")
 				else
 					XDT_DB.sort = true
-					DEFAULT_CHAT_FRAME:AddMessage("XanDebuffTimers: Bars sort [|cFF99CC33ASCENDING|r]")
+					DEFAULT_CHAT_FRAME:AddMessage("xanDebuffTimers: Bars sort [|cFF99CC33ASCENDING|r]")
 				end
 				return true
 			end
 		end
 
-		DEFAULT_CHAT_FRAME:AddMessage("XanDebuffTimers")
+		DEFAULT_CHAT_FRAME:AddMessage("xanDebuffTimers")
 		DEFAULT_CHAT_FRAME:AddMessage("/xdt anchor - toggles a movable anchor")
 		DEFAULT_CHAT_FRAME:AddMessage("/xdt scale # - sets the scale size of the bars")
 		DEFAULT_CHAT_FRAME:AddMessage("/xdt grow - changes the direction in which the bars grow (UP/DOWN)")
 		DEFAULT_CHAT_FRAME:AddMessage("/xdt sort - changes the sorting of the bars. (ASCENDING/DESCENDING)")
 	end
 	
-	local ver = tonumber(GetAddOnMetadata("XanDebuffTimers","Version")) or 'Unknown'
-	DEFAULT_CHAT_FRAME:AddMessage("|cFF99CC33XanDebuffTimers|r [v|cFFDF2B2B"..ver.."|r] loaded: /xdt")
+	local ver = tonumber(GetAddOnMetadata("xanDebuffTimers","Version")) or 'Unknown'
+	DEFAULT_CHAT_FRAME:AddMessage("|cFF99CC33xanDebuffTimers|r [v|cFFDF2B2B"..ver.."|r] loaded: /xdt")
 end
 	
 function f:PLAYER_TARGET_CHANGED()
