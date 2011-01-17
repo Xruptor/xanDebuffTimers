@@ -33,8 +33,8 @@ function f:PLAYER_LOGIN()
 	if XDT_DB.sort == nil then XDT_DB.sort = false end
 
 	--create our anchors
-	f:CreateAnchor("XDT_Anchor", UIParent)
-	f:CreateAnchor("XDT_FocusAnchor", UIParent)
+	f:CreateAnchor("XDT_Anchor", UIParent, "xanDebuffTimers: Target Anchor")
+	f:CreateAnchor("XDT_FocusAnchor", UIParent, "xanDebuffTimers: Focus Anchor")
 	
 	--create our timers
 	for i=1,MAX_TIMERS do
@@ -169,7 +169,7 @@ end
 --  Frame Creation  --
 ----------------------
 
-function f:CreateAnchor(name, parent)
+function f:CreateAnchor(name, parent, desc)
 
 	--create the anchor
 	local frameAnchor = CreateFrame("Frame", name, parent)
@@ -206,6 +206,9 @@ function f:CreateAnchor(name, parent)
 		GameTooltip:ClearLines()
 		
 		GameTooltip:AddLine(name)
+		if desc then
+			GameTooltip:AddLine(desc)
+		end
 		GameTooltip:Show()
 	end)
 
@@ -324,7 +327,7 @@ function f:ProcessDebuffs(sT, sdTimer)
 		local name, _, icon, count, _, duration, expTime, unitCaster, _, _, spellId = UnitAura(sT, i, 'HARMFUL|PLAYER')
 		--UnitIsUnit is used JUST IN CASE (you never know lol)
 		--check for duration > 0 for the evil DIVIDE BY ZERO
-		if name and unitCaster and UnitIsUnit(unitCaster, "player") and duration > 0 then
+		if name and unitCaster and UnitIsUnit(unitCaster, "player") and duration and duration > 0 then
 			sdTimer[i].id = sT
 			sdTimer[i].spellName = name
 			sdTimer[i].spellId = spellId
