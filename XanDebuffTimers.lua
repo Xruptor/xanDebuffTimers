@@ -323,7 +323,8 @@ function f:ProcessDebuffs(sT, sdTimer)
 	for i=1, MAX_TIMERS do
 		local name, _, icon, count, _, duration, expTime, unitCaster, _, _, spellId = UnitAura(sT, i, 'HARMFUL|PLAYER')
 		--UnitIsUnit is used JUST IN CASE (you never know lol)
-		if name and unitCaster and UnitIsUnit(unitCaster, "player") then
+		--check for duration > 0 for the evil DIVIDE BY ZERO
+		if name and unitCaster and UnitIsUnit(unitCaster, "player") and duration > 0 then
 			sdTimer[i].id = sT
 			sdTimer[i].spellName = name
 			sdTimer[i].spellId = spellId
