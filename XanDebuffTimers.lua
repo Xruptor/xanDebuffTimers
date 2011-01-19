@@ -1,4 +1,3 @@
---Inspired by TextTimers, Please give credit to Sagewind where possible
 
 local timers = {}
 local timersFocus = {}
@@ -12,6 +11,8 @@ local targetGUID = 0
 local focusGUID = 0
 local UnitAura = UnitAura
 local UnitIsUnit = UnitIsUnit
+local UnitGUID = UnitGUID
+local UnitName = UnitName
 
 local pointT = {
 	["target"] = "XDT_Anchor",
@@ -35,12 +36,6 @@ function f:PLAYER_LOGIN()
 	--create our anchors
 	f:CreateAnchor("XDT_Anchor", UIParent, "xanDebuffTimers: Target Anchor")
 	f:CreateAnchor("XDT_FocusAnchor", UIParent, "xanDebuffTimers: Focus Anchor")
-	
-	--create our timers
-	for i=1,MAX_TIMERS do
-		timers[i] = f:CreateDebuffTimers()
-		timersFocus[i] = f:CreateDebuffTimers()
-	end
 	
 	f:UnregisterEvent("PLAYER_LOGIN")
 	f.PLAYER_LOGIN = nil
@@ -72,8 +67,12 @@ function f:PLAYER_LOGIN()
 					if scalenum and scalenum ~= "" and tonumber(scalenum) then
 						XDT_DB.scale = tonumber(scalenum)
 						for i=1, MAX_TIMERS do
-							timers[i]:SetScale(tonumber(scalenum))
-							timersFocus[i]:SetScale(tonumber(scalenum))
+							if timers[i] then
+								timers[i]:SetScale(tonumber(scalenum))
+							end
+							if timersFocus[i] then
+								timersFocus[i]:SetScale(tonumber(scalenum))
+							end
 						end
 						DEFAULT_CHAT_FRAME:AddMessage("xanDebuffTimers: Scale has been set to ["..tonumber(scalenum).."]")
 						return true
@@ -322,33 +321,40 @@ end
 
 function f:ProcessDebuffs(sT, sdTimer)
 	--only process for as many timers as we are using
-	local countBuffs = 0
+	local slotNum = 0
 	for i=1, MAX_TIMERS do
 		local name, _, icon, count, _, duration, expTime, unitCaster, _, _, spellId = UnitAura(sT, i, 'HARMFUL|PLAYER')
+		if not name then break end 
 		--UnitIsUnit is used JUST IN CASE (you never know lol)
 		--check for duration > 0 for the evil DIVIDE BY ZERO
 		if name and unitCaster and UnitIsUnit(unitCaster, "player") and duration and duration > 0 then
-			sdTimer[i].id = sT
-			sdTimer[i].spellName = name
-			sdTimer[i].spellId = spellId
-			sdTimer[i].iconTex = icon
-			sdTimer[i].icon:SetTexture(icon)
-			sdTimer[i].startTime = expTime - duration
-			sdTimer[i].durationTime = duration
-			sdTimer[i].endTime = expTime
-			sdTimer[i].stacks = count or 0
+			--get the next timer slot we can use
+			slotNum = slotNum + 1
+			if not sdTimer[slotNum] then sdTimer[slotNum] = f:CreateDebuffTimers() end --create the timer if it doesn't exist
+			sdTimer[slotNum].id = sT
+			sdTimer[slotNum].spellName = name
+			sdTimer[slotNum].spellId = spellId
+			sdTimer[slotNum].iconTex = icon
+			sdTimer[slotNum].icon:SetTexture(icon)
+			sdTimer[slotNum].startTime = expTime - duration
+			sdTimer[slotNum].durationTime = duration
+			sdTimer[slotNum].endTime = expTime
+			sdTimer[slotNum].stacks = count or 0
 				local tmpBL = ceil( string.len(BAR_TEXT) * ( (expTime - GetTime()) / duration ) )
 				if tmpBL > string.len(BAR_TEXT) then tmpBL = string.len(BAR_TEXT) end
-			sdTimer[i].tmpBL = tmpBL
-			sdTimer[i].active = true
-			if not sdTimer[i]:IsVisible() then sdTimer[i]:Show() end
-			countBuffs = countBuffs + 1
-		else
+			sdTimer[slotNum].tmpBL = tmpBL
+			sdTimer[slotNum].active = true
+			if not sdTimer[slotNum]:IsVisible() then sdTimer[slotNum]:Show() end
+		end
+	end
+	--clear everything else
+	for i=(slotNum+1), #sdTimer do
+		if sdTimer[i] then
 			sdTimer[i].active = false
 			if sdTimer[i]:IsVisible() then sdTimer[i]:Hide() end
 		end
 	end
-	if countBuffs > 0 then
+	if slotNum > 0 then
 		f:ArrangeDebuffs(false, sT)
 	end
 end
@@ -356,7 +362,7 @@ end
 function f:ClearDebuffs(sdTimer)
 	local adj = 0
 
-	for i=1, MAX_TIMERS do
+	for i=1, #sdTimer do
 		if sdTimer[i].active then
 			sdTimer[i].active = false
 		end
