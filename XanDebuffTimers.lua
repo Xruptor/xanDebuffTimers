@@ -139,9 +139,11 @@ local eventSwitch = {
 	["SPELL_AURA_REMOVED_DOSE"] = true,
 	["SPELL_AURA_BROKEN"] = true,
 	["SPELL_AURA_BROKEN_SPELL"] = true,
+	["ENCHANT_REMOVED"] = true,
+	["ENCHANT_APPLIED"] = true,
 }
 
-function f:COMBAT_LOG_EVENT_UNFILTERED(event, timestamp, eventType, srcGUID, srcName, srcFlags, dstGUID, dstName, dstFlags, spellID, spellName, spellSchool, auraType, amount)
+function f:COMBAT_LOG_EVENT_UNFILTERED(event, timestamp, eventType, hideCaster, srcGUID, srcName, srcFlags, dstGUID, dstName, dstFlags, spellID, spellName, spellSchool, auraType, amount)
 
     if eventType == "UNIT_DIED" or eventType == "UNIT_DESTROYED" then
 		--clear the debuffs if the unit died
