@@ -143,7 +143,7 @@ local eventSwitch = {
 	["ENCHANT_APPLIED"] = true,
 }
 
-function f:COMBAT_LOG_EVENT_UNFILTERED(event, timestamp, eventType, hideCaster, srcGUID, srcName, srcFlags, dstGUID, dstName, dstFlags, spellID, spellName, spellSchool, auraType, amount)
+function f:COMBAT_LOG_EVENT_UNFILTERED(event, timestamp, eventType, hideCaster, sourceGUID, sourceName, srcFlags, sourceRaidFlags, dstGUID, destName, destFlags, destRaidFlags, spellID, spellName, spellSchool, auraType, amount)
 
     if eventType == "UNIT_DIED" or eventType == "UNIT_DESTROYED" then
 		--clear the debuffs if the unit died
