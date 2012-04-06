@@ -525,7 +525,7 @@ function f:RestoreLayout(frame)
 	local y = opt.PosY;
 	local s = f:GetEffectiveScale()
 
-	if not x or not y or opt.firsttime then
+	if opt.firsttime then
 		f:ClearAllPoints()
 		f:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
 		if opt.firsttime then opt.firsttime = nil end
