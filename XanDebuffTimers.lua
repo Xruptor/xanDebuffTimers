@@ -339,7 +339,7 @@ function f:ProcessDebuffs(sT, sdTimer)
 		if not name then break end 
 		--UnitIsUnit is used JUST IN CASE (you never know lol)
 		--check for duration > 0 for the evil DIVIDE BY ZERO
-		if name and unitCaster and UnitIsUnit(unitCaster, "player") and duration and duration > 0 then
+		if name and unitCaster and unitCaster == "player" and duration and duration > 0 then
 			--get the next timer slot we can use
 			slotNum = slotNum + 1
 			if not sdTimer[slotNum] then sdTimer[slotNum] = f:CreateDebuffTimers() end --create the timer if it doesn't exist
@@ -480,65 +480,51 @@ end
 -- Local Functions  --
 ----------------------
 	
+	
 function f:SaveLayout(frame)
-
+	if type(frame) ~= "string" then return end
+	if not _G[frame] then return end
 	if not XDT_DB then XDT_DB = {} end
+	
+	local opt = XDT_DB[frame] or nil
 
-	local opt = XDT_DB[frame] or nil;
-
-	if opt == nil then
+	if not opt then
 		XDT_DB[frame] = {
 			["point"] = "CENTER",
 			["relativePoint"] = "CENTER",
-			["PosX"] = 0,
-			["PosY"] = 0,
+			["xOfs"] = 0,
+			["yOfs"] = 0,
 		}
-		opt = XDT_DB[frame];
+		opt = XDT_DB[frame]
+		return
 	end
 
-	local f = getglobal(frame);
-	local scale = f:GetEffectiveScale();
-	opt.PosX = f:GetLeft() * scale;
-	opt.PosY = f:GetTop() * scale;
-	
+	local point, relativeTo, relativePoint, xOfs, yOfs = _G[frame]:GetPoint()
+	opt.point = point
+	opt.relativePoint = relativePoint
+	opt.xOfs = xOfs
+	opt.yOfs = yOfs
 end
 
 function f:RestoreLayout(frame)
-
+	if type(frame) ~= "string" then return end
+	if not _G[frame] then return end
 	if not XDT_DB then XDT_DB = {} end
-	
-	local f = getglobal(frame);
-	local opt = XDT_DB[frame] or nil;
 
-	if opt == nil then
+	local opt = XDT_DB[frame] or nil
+
+	if not opt then
 		XDT_DB[frame] = {
 			["point"] = "CENTER",
 			["relativePoint"] = "CENTER",
-			["PosX"] = 0,
-			["PosY"] = 0,
-			["firsttime"] = true,
+			["xOfs"] = 0,
+			["yOfs"] = 0,
 		}
 		opt = XDT_DB[frame]
 	end
 
-	local x = opt.PosX;
-	local y = opt.PosY;
-	local s = f:GetEffectiveScale()
-
-	if opt.firsttime then
-		f:ClearAllPoints()
-		f:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
-		if opt.firsttime then opt.firsttime = nil end
-		return 
-	end
-
-	--calculate the scale
-	x,y = x/s, y/s
-
-	--set the location
-	f:ClearAllPoints()
-	f:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x, y)
-
+	_G[frame]:ClearAllPoints()
+	_G[frame]:SetPoint(opt.point, UIParent, opt.relativePoint, opt.xOfs, opt.yOfs)
 end
 
 function f:getBarColor(dur, expR)
