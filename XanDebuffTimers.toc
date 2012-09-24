@@ -1,8 +1,8 @@
-## Interface: 40300
+## Interface: 50001
 ## Title: xanDebuffTimers
 ## Notes: A small text based progress bar system for target debuffs.
 ## Author: Xruptor
-## Version: 3.2
+## Version: 3.3
 ## SavedVariablesPerCharacter: XDT_DB
 
 xanDebuffTimers.lua
