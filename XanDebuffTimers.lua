@@ -541,12 +541,12 @@ end
 function f:GetTimeText(timeLeft)
 	local hours, minutes, seconds = 0, 0, 0
 	if( timeLeft >= 3600 ) then
-		hours = floor(timeLeft / 3600)
+		hours = ceil(timeLeft / 3600)
 		timeLeft = mod(timeLeft, 3600)
 	end
 
 	if( timeLeft >= 60 ) then
-		minutes = floor(timeLeft / 60)
+		minutes = ceil(timeLeft / 60)
 		timeLeft = mod(timeLeft, 60)
 	end
 
