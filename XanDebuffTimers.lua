@@ -22,6 +22,11 @@ local pointT = {
 local f = CreateFrame("frame","xanDebuffTimers",UIParent)
 f:SetScript("OnEvent", function(self, event, ...) if self[event] then return self[event](self, event, ...) end end)
 
+local debugf = tekDebug and tekDebug:GetFrame("xanDebuffTimers")
+local function Debug(...)
+    if debugf then debugf:AddMessage(string.join(", ", tostringall(...))) end
+end
+
 ----------------------
 --      Enable      --
 ----------------------
@@ -257,21 +262,40 @@ local TimerOnUpdate = function(self, time)
 		self.OnUpdateCounter = (self.OnUpdateCounter or 0) + time
 		if self.OnUpdateCounter < 0.05 then return end
 		self.OnUpdateCounter = 0
-
+		
 		local beforeEnd = self.endTime - GetTime()
-		local barLength = ceil( string.len(BAR_TEXT) * (beforeEnd / self.durationTime) )
-		--check the string length JUST in case for errors
-		if barLength > string.len(BAR_TEXT) then barLength = string.len(BAR_TEXT) end
-
-		if barLength <= 0 then
+		--local percentTotal = (beforeEnd / self.durationTime)
+		--local percentFinal = ceil(percentTotal * 100)
+		
+		--calculate the individual bar segments and make the appropriate calculations
+		local totalDuration = (self.endTime - self.startTime) --total duration of the spell
+		local totalBarSegment = (string.len(BAR_TEXT) / totalDuration) --lets get how much each segment of the bar string would value up to 100%
+		local totalBarLength = totalBarSegment * beforeEnd --now get the individual bar segment value and multiply it with current duration
+		local barPercent = (totalBarLength / string.len(BAR_TEXT)) * 100
+		
+		--100/40 means each segment is 2.5 for 100%
+		
+		--example for 50%   50/100 = 0.5   0.5 / 2.5 = 0.2  (50% divided by segment count) 0.2 * 100 = 20 (which is half of the bar of 40)
+		--local testBar = ((percentFinal / 100) / 2.5) * 100
+		
+		--Debug("(2) Spell("..self.spellName..") totalDuration: "..tostring(ceil(totalDuration)).."  |  totalBarSegment: "..tostring(ceil(totalBarSegment)).."  |  totalBarLength: "..tostring(ceil(totalBarLength)).."  |  barPercent: "..tostring(ceil(barPercent)))
+		
+		--Debug("(3) Spell("..self.spellName..") Time: "..tostring(GetTime()).."  |  percentTotal: "..tostring(ceil(percentTotal)).."  |  PercentFinal: "..tostring(percentFinal).."  |  tmpBL: "..tostring(tmpBL).."  |  TextTime: "..tostring(ceil(beforeEnd)))
+	
+		--Debug("(4) Spell("..self.spellName..") Time: "..tostring(GetTime()).."  |  beforeEnd: "..tostring(ceil(beforeEnd)).."  |  tmpBL: "..tostring(tmpBL).."  |  Testing: "..tostring(testing))
+		
+		if barPercent <= 0 or beforeEnd <= 0 or totalBarLength <= 0 then
 			self.active = false
 			self:Hide()
 			f:ArrangeDebuffs(true, self.id)
 			return               
 		end
 		
-		self.tmpBL = barLength
-		self.Bar:SetText( string.sub(BAR_TEXT, 1, barLength) )
+		self.percent = barPercent
+		self.tmpBL = totalBarLength
+		self.beforeEnd = beforeEnd
+		
+		self.Bar:SetText( string.sub(BAR_TEXT, 1, totalBarLength) )
 		self.Bar:SetTextColor(f:getBarColor(self.durationTime, beforeEnd))
 		if self.stacks > 0 then
 			self.stacktext:SetText(self.stacks)
@@ -280,6 +304,7 @@ local TimerOnUpdate = function(self, time)
 		end
 		self.timetext:SetText(f:GetTimeText(ceil(beforeEnd)))
 		f:ArrangeDebuffs(true, self.id)
+		
 	end
 	
 end
@@ -340,30 +365,42 @@ function f:ProcessDebuffs(sT, sdTimer)
 		--UnitIsUnit is used JUST IN CASE (you never know lol)
 		--check for duration > 0 for the evil DIVIDE BY ZERO
 		if name and unitCaster and unitCaster == "player" and duration and duration > 0 then
-			--get the next timer slot we can use
-			slotNum = slotNum + 1
-			if not sdTimer[slotNum] then sdTimer[slotNum] = f:CreateDebuffTimers() end --create the timer if it doesn't exist
-			sdTimer[slotNum].id = sT
-			sdTimer[slotNum].spellName = name
-			sdTimer[slotNum].spellId = spellId
-			sdTimer[slotNum].iconTex = icon
-			sdTimer[slotNum].icon:SetTexture(icon)
-			sdTimer[slotNum].startTime = expTime - duration
-			sdTimer[slotNum].durationTime = duration
-			sdTimer[slotNum].endTime = expTime
-			sdTimer[slotNum].stacks = count or 0
-				local tmpBL = ceil( string.len(BAR_TEXT) * ( (expTime - GetTime()) / duration ) )
-				if tmpBL > string.len(BAR_TEXT) then tmpBL = string.len(BAR_TEXT) end
-			sdTimer[slotNum].tmpBL = tmpBL
-			sdTimer[slotNum].active = true
-			if not sdTimer[slotNum]:IsVisible() then sdTimer[slotNum]:Show() end
+			local beforeEnd = expTime - GetTime()
+			local startTime = (expTime - duration)
+			local totalDuration = (expTime - startTime) --total duration of the spell
+			local totalBarSegment = (string.len(BAR_TEXT) / totalDuration) --lets get how much each segment of the bar string would value up to 100%
+			local totalBarLength = totalBarSegment * beforeEnd --now get the individual bar segment value and multiply it with current duration
+			local barPercent = (totalBarLength / string.len(BAR_TEXT)) * 100
+		
+			if barPercent > 0 or beforeEnd > 0 or totalBarLength > 0 then
+				--get the next timer slot we can use
+				slotNum = slotNum + 1
+				if not sdTimer[slotNum] then sdTimer[slotNum] = f:CreateDebuffTimers() end --create the timer if it doesn't exist
+				sdTimer[slotNum].id = sT
+				sdTimer[slotNum].spellName = name
+				sdTimer[slotNum].spellId = spellId
+				sdTimer[slotNum].iconTex = icon
+				sdTimer[slotNum].icon:SetTexture(icon)
+				sdTimer[slotNum].startTime = startTime
+				sdTimer[slotNum].durationTime = duration
+				sdTimer[slotNum].beforeEnd = beforeEnd
+				sdTimer[slotNum].endTime = expTime
+				sdTimer[slotNum].tmpBL = totalBarLength
+				sdTimer[slotNum].stacks = count or 0
+				sdTimer[slotNum].percent = barPercent
+				sdTimer[slotNum].active = true
+				if not sdTimer[slotNum]:IsVisible() then sdTimer[slotNum]:Show() end
+				--Debug("(1) Time: "..tostring(GetTime()).."  |  Start: "..tostring(expTime - duration).."  |  Duration: "..tostring(duration).."  |  Expiration: "..tostring(expTime))
+				--Debug("<Percentage> "..tostring(sdTimer[slotNum].percent) )
+			end
 		end
 	end
+
 	--clear everything else
 	for i=(slotNum+1), #sdTimer do
 		if sdTimer[i] then
 			sdTimer[i].active = false
-			if sdTimer[i]:IsVisible() then sdTimer[i]:Hide() end
+			sdTimer[i]:Hide()
 		end
 	end
 	if slotNum > 0 then
@@ -388,7 +425,7 @@ function f:ClearDebuffs(sdTimer)
 		end
 		adj = adj - BAR_ADJUST
 
-		if sdTimer[i]:IsVisible() then sdTimer[i]:Hide() end
+		sdTimer[i]:Hide()
 	end
 	
 end
@@ -414,6 +451,14 @@ function f:ArrangeDebuffs(throttle, id)
 		return
 	end
 	
+	--hides
+	for i=1, #sdTimer do
+		if not sdTimer[i].active then
+			sdTimer[i]:Hide()
+		end
+		
+	end
+
 	if XDT_DB.grow then
 		--bars will grow down
 		if XDT_DB.sort then
@@ -422,7 +467,7 @@ function f:ArrangeDebuffs(throttle, id)
 				if a.active == true and b.active == false then
 					return true;
 				elseif a.active and b.active then
-					return (a.tmpBL < b.tmpBL);
+					return (a.percent < b.percent);
 				end
 				return false;
 			end)
@@ -432,7 +477,7 @@ function f:ArrangeDebuffs(throttle, id)
 				if a.active == true and b.active == false then
 					return true;
 				elseif a.active and b.active then
-					return (a.tmpBL > b.tmpBL);
+					return (a.percent > b.percent);
 				end
 				return false;
 			end)
@@ -445,7 +490,7 @@ function f:ArrangeDebuffs(throttle, id)
 				if a.active == true and b.active == false then
 					return true;
 				elseif a.active and b.active then
-					return (a.tmpBL > b.tmpBL);
+					return (a.percent > b.percent);
 				end
 				return false;
 			end)
@@ -455,7 +500,7 @@ function f:ArrangeDebuffs(throttle, id)
 				if a.active == true and b.active == false then
 					return true;
 				elseif a.active and b.active then
-					return (a.tmpBL < b.tmpBL);
+					return (a.percent < b.percent);
 				end
 				return false;
 			end)
