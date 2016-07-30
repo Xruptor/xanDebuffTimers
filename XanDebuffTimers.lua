@@ -264,8 +264,10 @@ local TimerOnUpdate = function(self, time)
 		self.OnUpdateCounter = 0
 		
 		local beforeEnd = self.endTime - GetTime()
-		--local percentTotal = (beforeEnd / self.durationTime)
-		--local percentFinal = ceil(percentTotal * 100)
+		local percentTotal = (beforeEnd / self.durationTime)
+		local percentFinal = ceil(percentTotal * 100)
+		local barLength = ceil( string.len(BAR_TEXT) * percentTotal )
+
 		
 		--calculate the individual bar segments and make the appropriate calculations
 		local totalDuration = (self.endTime - self.startTime) --total duration of the spell
@@ -295,7 +297,7 @@ local TimerOnUpdate = function(self, time)
 		self.tmpBL = totalBarLength
 		self.beforeEnd = beforeEnd
 		
-		self.Bar:SetText( string.sub(BAR_TEXT, 1, totalBarLength) )
+		self.Bar:SetText( string.sub(BAR_TEXT, 1, totalBarLength).." | "..barLength.." | ".. totalBarLength)
 		self.Bar:SetTextColor(f:getBarColor(self.durationTime, beforeEnd))
 		if self.stacks > 0 then
 			self.stacktext:SetText(self.stacks)
