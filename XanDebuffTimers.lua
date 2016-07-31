@@ -20,6 +20,11 @@ local pointT = {
 	["focus"] = "XDT_FocusAnchor",
 }
 
+local timerList = {
+	["target"] = timers,
+	["focus"] = timersFocus,
+}
+
 local f = CreateFrame("frame","xanDebuffTimers",UIParent)
 f:SetScript("OnEvent", function(self, event, ...) if self[event] then return self[event](self, event, ...) end end)
 
@@ -125,9 +130,9 @@ end
 function f:PLAYER_TARGET_CHANGED()
 	if UnitName("target") and UnitGUID("target") then
 		targetGUID = UnitGUID("target")
-		f:ProcessDebuffs("target", timers)
+		f:ProcessDebuffs("target")
 	else
-		f:ClearDebuffs(timers)
+		f:ClearDebuffs("target")
 		targetGUID = 0
 	end
 end
@@ -135,9 +140,9 @@ end
 function f:PLAYER_FOCUS_CHANGED()
 	if UnitName("focus") and UnitGUID("focus") then
 		focusGUID = UnitGUID("focus")
-		f:ProcessDebuffs("focus", timersFocus)
+		f:ProcessDebuffs("focus")
 	else
-		f:ClearDebuffs(timersFocus)
+		f:ClearDebuffs("focus")
 		focusGUID = 0
 	end
 end
@@ -169,21 +174,21 @@ function f:COMBAT_LOG_EVENT_UNFILTERED(event, timestamp, eventType, hideCaster, 
 		--NOTE the reason an elseif isn't used is because some dorks may have
 		--their current target as their focus as well
 		if dstGUID == targetGUID then
-			f:ClearDebuffs(timers)
+			f:ClearDebuffs("target")
 			targetGUID = 0
 		end
 		if dstGUID == focusGUID then
-			f:ClearDebuffs(timersFocus)
+			f:ClearDebuffs("focus")
 			focusGUID = 0
 		end
 		
 	elseif eventSwitch[eventType] and band(srcFlags, COMBATLOG_OBJECT_AFFILIATION_MINE) ~= 0 then
 		--process the spells based on GUID
 		if dstGUID == targetGUID then
-			f:ProcessDebuffs("target", timers)
+			f:ProcessDebuffs("target")
 		end
 		if dstGUID == focusGUID then
-			f:ProcessDebuffs("focus", timersFocus)
+			f:ProcessDebuffs("focus")
 		end
     end
 end
@@ -349,16 +354,8 @@ function f:ProcessDebuffBar(data)
 	local barPercent = (totalBarLength / string.len(BAR_TEXT)) * 100
 	
 	--100/40 means each segment is 2.5 for 100%
-	
 	--example for 50%   50/100 = 0.5   0.5 / 2.5 = 0.2  (50% divided by segment count) 0.2 * 100 = 20 (which is half of the bar of 40)
-	--local testBar = ((percentFinal / 100) / 2.5) * 100
-	
-	--Debug("(2) Spell("..data.spellName..") totalDuration: "..tostring(ceil(totalDuration)).."  |  totalBarSegment: "..tostring(ceil(totalBarSegment)).."  |  totalBarLength: "..tostring(ceil(totalBarLength)).."  |  barPercent: "..tostring(ceil(barPercent)))
-	
-	--Debug("(3) Spell("..data.spellName..") Time: "..tostring(GetTime()).."  |  percentTotal: "..tostring(ceil(percentTotal)).."  |  PercentFinal: "..tostring(percentFinal).."  |  totalBarLength: "..tostring(totalBarLength).."  |  TextTime: "..tostring(ceil(beforeEnd)))
 
-	--Debug("(4) Spell("..data.spellName..") Time: "..tostring(GetTime()).."  |  beforeEnd: "..tostring(ceil(beforeEnd)).."  |  totalBarLength: "..tostring(totalBarLength).."  |  Testing: "..tostring(testing))
-	
 	if barPercent <= 0 or beforeEnd <= 0 or totalBarLength <= 0 then
 		data.active = false
 		return               
@@ -380,23 +377,37 @@ f:SetScript("OnUpdate", function(self, elapsed)
 	if self.OnUpdateCounter < 0.05 then return end
 	self.OnUpdateCounter = 0
 
+	local tCount = 0
+	local fCount = 0
+	
 	for i=1, MAX_TIMERS do
 		if timers.data[i].active then
 			self:ProcessDebuffBar(timers.data[i])
+			tCount = tCount + 1
 		end
 		if timersFocus.data[i].active then
 			self:ProcessDebuffBar(timersFocus.data[i])
+			fCount = fCount + 1
 		end
 	end
-	f:ArrangeDebuffs("target")
-	f:ArrangeDebuffs("focus")
+	
+	--no need to arrange the bars if there is nothing to work with, uncessary if no target or focus
+	if tCount > 0 then
+		f:ArrangeDebuffs("target")
+	end
+	if fCount > 0 then
+		f:ArrangeDebuffs("focus")
+	end
+
 	
 end)
 
-function f:ProcessDebuffs(sT, sdTimer)
+function f:ProcessDebuffs(id)
 	--only process for as many timers as we are using
+	local sdTimer = timerList[id]
+	
 	for i=1, MAX_TIMERS do
-		local name, _, icon, count, _, duration, expTime, unitCaster, _, _, spellId = UnitAura(sT, i, 'PLAYER|HARMFUL')
+		local name, _, icon, count, _, duration, expTime, unitCaster, _, _, spellId = UnitAura(id, i, 'PLAYER|HARMFUL')
 		--check for duration > 0 for the evil DIVIDE BY ZERO
 		if name and duration and duration > 0 then
 			local beforeEnd = expTime - GetTime()
@@ -408,7 +419,7 @@ function f:ProcessDebuffs(sT, sdTimer)
 		
 			if barPercent > 0 or beforeEnd > 0 or totalBarLength > 0 then
 				--data
-				sdTimer.data[i].id = sT
+				sdTimer.data[i].id = id
 				sdTimer.data[i].spellName = name
 				sdTimer.data[i].spellId = spellId
 				sdTimer.data[i].iconTex = icon
@@ -420,19 +431,17 @@ function f:ProcessDebuffs(sT, sdTimer)
 				sdTimer.data[i].stacks = count or 0
 				sdTimer.data[i].percent = barPercent
 				sdTimer.data[i].active = true
-				
-				--Debug("(1) Time: "..tostring(GetTime()).."  |  Start: "..tostring(expTime - duration).."  |  Duration: "..tostring(duration).."  |  Expiration: "..tostring(expTime))
-				--Debug("<Percentage> "..tostring(sdTimer[slotNum].percent) )
 			end
 		else
 			sdTimer.data[i].active = false
 		end
 	end
 
-	f:ArrangeDebuffs(sT)
+	f:ArrangeDebuffs(id)
 end
 
-function f:ClearDebuffs(sdTimer)
+function f:ClearDebuffs(id)
+	local sdTimer = timerList[id]
 	local adj = 0
 
 	for i=1, MAX_TIMERS do
