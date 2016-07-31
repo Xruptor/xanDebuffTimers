@@ -6,6 +6,7 @@ local ICON_SIZE = 20
 local BAR_ADJUST = 25
 local BAR_TEXT = "llllllllllllllllllllllllllllllllllllllll"
 local band = bit.band
+local locked = false
 
 local targetGUID = 0
 local focusGUID = 0
@@ -458,6 +459,9 @@ end
 
 function f:ArrangeDebuffs(id)
 
+	if locked then return end
+	locked = true
+	
 	local adj = 0
 	local sdTimer
 	local tmpList = {}
@@ -467,13 +471,13 @@ function f:ArrangeDebuffs(id)
 	elseif id == "focus" then
 		sdTimer = timersFocus
 	else
+		locked = false
 		return
 	end
 	
 	for i=1, MAX_TIMERS do
 		if sdTimer.data[i].active then
 			table.insert(tmpList, deepcopy(sdTimer.data[i]))
-			--Debug(i)
 		end
 	end
 	
@@ -504,6 +508,8 @@ function f:ArrangeDebuffs(id)
 		if tmpList[i] then
 			sdTimer.data[i] = tmpList[i]
 			
+			--display the information
+			---------------------------------------
 			sdTimer[i].Bar:SetText( string.sub(BAR_TEXT, 1, sdTimer.data[i].totalBarLength) )
 			sdTimer[i].Bar:SetTextColor(f:getBarColor(sdTimer.data[i].durationTime, sdTimer.data[i].beforeEnd))
 			sdTimer[i].icon:SetTexture(sdTimer.data[i].iconTex)
@@ -513,7 +519,8 @@ function f:ArrangeDebuffs(id)
 				sdTimer[i].stacktext:SetText(nil)
 			end
 			sdTimer[i].timetext:SetText(f:GetTimeText(ceil(sdTimer.data[i].beforeEnd)))
-	
+			---------------------------------------
+			
 			sdTimer[i]:Show()
 		else
 			sdTimer.data[i].active = false
@@ -521,6 +528,7 @@ function f:ArrangeDebuffs(id)
 		end
     end
 
+	locked = false
 end
 
 ----------------------
