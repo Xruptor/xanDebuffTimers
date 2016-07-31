@@ -27,6 +27,9 @@ local function Debug(...)
     if debugf then debugf:AddMessage(string.join(", ", tostringall(...))) end
 end
 
+timers.data = {}
+timersFocus.data = {}
+
 ----------------------
 --      Enable      --
 ----------------------
@@ -41,6 +44,9 @@ function f:PLAYER_LOGIN()
 	--create our anchors
 	f:CreateAnchor("XDT_Anchor", UIParent, "xanDebuffTimers: Target Anchor")
 	f:CreateAnchor("XDT_FocusAnchor", UIParent, "xanDebuffTimers: Focus Anchor")
+
+	--create our bars
+	f:generateBars()
 	
 	f:UnregisterEvent("PLAYER_LOGIN")
 	f.PLAYER_LOGIN = nil
@@ -256,65 +262,11 @@ function f:CreateAnchor(name, parent, desc)
 	f:RestoreLayout(name)
 end
 
-local TimerOnUpdate = function(self, time)
-
-	if self.active then
-		self.OnUpdateCounter = (self.OnUpdateCounter or 0) + time
-		if self.OnUpdateCounter < 0.05 then return end
-		self.OnUpdateCounter = 0
-		
-		local beforeEnd = self.endTime - GetTime()
-		local percentTotal = (beforeEnd / self.durationTime)
-		local percentFinal = ceil(percentTotal * 100)
-		local barLength = ceil( string.len(BAR_TEXT) * percentTotal )
-
-		
-		--calculate the individual bar segments and make the appropriate calculations
-		local totalDuration = (self.endTime - self.startTime) --total duration of the spell
-		local totalBarSegment = (string.len(BAR_TEXT) / totalDuration) --lets get how much each segment of the bar string would value up to 100%
-		local totalBarLength = totalBarSegment * beforeEnd --now get the individual bar segment value and multiply it with current duration
-		local barPercent = (totalBarLength / string.len(BAR_TEXT)) * 100
-		
-		--100/40 means each segment is 2.5 for 100%
-		
-		--example for 50%   50/100 = 0.5   0.5 / 2.5 = 0.2  (50% divided by segment count) 0.2 * 100 = 20 (which is half of the bar of 40)
-		--local testBar = ((percentFinal / 100) / 2.5) * 100
-		
-		--Debug("(2) Spell("..self.spellName..") totalDuration: "..tostring(ceil(totalDuration)).."  |  totalBarSegment: "..tostring(ceil(totalBarSegment)).."  |  totalBarLength: "..tostring(ceil(totalBarLength)).."  |  barPercent: "..tostring(ceil(barPercent)))
-		
-		--Debug("(3) Spell("..self.spellName..") Time: "..tostring(GetTime()).."  |  percentTotal: "..tostring(ceil(percentTotal)).."  |  PercentFinal: "..tostring(percentFinal).."  |  tmpBL: "..tostring(tmpBL).."  |  TextTime: "..tostring(ceil(beforeEnd)))
-	
-		--Debug("(4) Spell("..self.spellName..") Time: "..tostring(GetTime()).."  |  beforeEnd: "..tostring(ceil(beforeEnd)).."  |  tmpBL: "..tostring(tmpBL).."  |  Testing: "..tostring(testing))
-		
-		if barPercent <= 0 or beforeEnd <= 0 or totalBarLength <= 0 then
-			self.active = false
-			self:Hide()
-			f:ArrangeDebuffs(true, self.id)
-			return               
-		end
-		
-		self.percent = barPercent
-		self.tmpBL = totalBarLength
-		self.beforeEnd = beforeEnd
-		
-		self.Bar:SetText( string.sub(BAR_TEXT, 1, totalBarLength).." | "..barLength.." | ".. totalBarLength)
-		self.Bar:SetTextColor(f:getBarColor(self.durationTime, beforeEnd))
-		if self.stacks > 0 then
-			self.stacktext:SetText(self.stacks)
-		else
-			self.stacktext:SetText(nil)
-		end
-		self.timetext:SetText(f:GetTimeText(ceil(beforeEnd)))
-		f:ArrangeDebuffs(true, self.id)
-		
-	end
-	
-end
-
 function f:CreateDebuffTimers()
 	
     local Frm = CreateFrame("Frame", nil, UIParent)
 	
+	Frm.data = {}
     Frm.active = false
     Frm:SetWidth(ICON_SIZE)
     Frm:SetHeight(ICON_SIZE)
@@ -345,28 +297,107 @@ function f:CreateDebuffTimers()
 	Frm.Bar:SetFont(STANDARD_TEXT_FONT, 14, "OUTLINE, MONOCHROME")
 	Frm.Bar:SetText(BAR_TEXT)
 	Frm.Bar:SetPoint("LEFT", Frm.icon, "RIGHT", 1, 0)
-		
-    Frm:SetScript("OnUpdate", TimerOnUpdate)
-
+	
 	Frm:Hide()
     
 	return Frm
 	
 end
 
+function f:generateBars()
+	local adj = 0
+	
+	--lets create the max bars to use on screen for future sorting
+	for i=1, MAX_TIMERS do
+		timers[i] = f:CreateDebuffTimers()
+		timersFocus[i] = f:CreateDebuffTimers()
+		if not timers.data[i] then timers.data[i] = {} end
+		if not timersFocus.data[i] then timersFocus.data[i] = {} end
+	end
+		
+	--rearrange order
+	for i=1, MAX_TIMERS do
+		if XDT_DB.grow then
+			timers[i]:ClearAllPoints()
+			timers[i]:SetPoint("TOPLEFT", XDT_Anchor, "BOTTOMRIGHT", 0, adj)
+			timersFocus[i]:ClearAllPoints()
+			timersFocus[i]:SetPoint("TOPLEFT", XDT_FocusAnchor, "BOTTOMRIGHT", 0, adj)			
+		else
+			timers[i]:ClearAllPoints()
+			timers[i]:SetPoint("BOTTOMLEFT", XDT_Anchor, "TOPRIGHT", 0, (adj * -1))
+			timersFocus[i]:ClearAllPoints()
+			timersFocus[i]:SetPoint("BOTTOMLEFT", XDT_FocusAnchor, "TOPRIGHT", 0, (adj * -1))			
+		end
+		adj = adj - BAR_ADJUST
+    end
+
+end
+
+function f:ProcessDebuffBar(data)
+	if not data.active then return end --just in case
+	
+	local beforeEnd = data.endTime - GetTime()
+	-- local percentTotal = (beforeEnd / data.durationTime)
+	-- local percentFinal = ceil(percentTotal * 100)
+	-- local barLength = ceil( string.len(BAR_TEXT) * percentTotal )
+
+	--calculate the individual bar segments and make the appropriate calculations
+	local totalDuration = (data.endTime - data.startTime) --total duration of the spell
+	local totalBarSegment = (string.len(BAR_TEXT) / totalDuration) --lets get how much each segment of the bar string would value up to 100%
+	local totalBarLength = totalBarSegment * beforeEnd --now get the individual bar segment value and multiply it with current duration
+	local barPercent = (totalBarLength / string.len(BAR_TEXT)) * 100
+	
+	--100/40 means each segment is 2.5 for 100%
+	
+	--example for 50%   50/100 = 0.5   0.5 / 2.5 = 0.2  (50% divided by segment count) 0.2 * 100 = 20 (which is half of the bar of 40)
+	--local testBar = ((percentFinal / 100) / 2.5) * 100
+	
+	--Debug("(2) Spell("..data.spellName..") totalDuration: "..tostring(ceil(totalDuration)).."  |  totalBarSegment: "..tostring(ceil(totalBarSegment)).."  |  totalBarLength: "..tostring(ceil(totalBarLength)).."  |  barPercent: "..tostring(ceil(barPercent)))
+	
+	--Debug("(3) Spell("..data.spellName..") Time: "..tostring(GetTime()).."  |  percentTotal: "..tostring(ceil(percentTotal)).."  |  PercentFinal: "..tostring(percentFinal).."  |  totalBarLength: "..tostring(totalBarLength).."  |  TextTime: "..tostring(ceil(beforeEnd)))
+
+	--Debug("(4) Spell("..data.spellName..") Time: "..tostring(GetTime()).."  |  beforeEnd: "..tostring(ceil(beforeEnd)).."  |  totalBarLength: "..tostring(totalBarLength).."  |  Testing: "..tostring(testing))
+	
+	if barPercent <= 0 or beforeEnd <= 0 or totalBarLength <= 0 then
+		data.active = false
+		return               
+	end
+	
+	data.percent = barPercent
+	data.totalBarLength = totalBarLength
+	data.beforeEnd = beforeEnd
+	
+end
+	
 ----------------------
 -- Debuff Functions --
 ----------------------
 
+--lets use one global OnUpdate instead of individual ones for each debuff bar
+f:SetScript("OnUpdate", function(self, elapsed)
+	self.OnUpdateCounter = (self.OnUpdateCounter or 0) + elapsed
+	if self.OnUpdateCounter < 0.05 then return end
+	self.OnUpdateCounter = 0
+
+	for i=1, MAX_TIMERS do
+		if timers.data[i].active then
+			self:ProcessDebuffBar(timers.data[i])
+		end
+		if timersFocus.data[i].active then
+			self:ProcessDebuffBar(timersFocus.data[i])
+		end
+	end
+	f:ArrangeDebuffs("target")
+	f:ArrangeDebuffs("focus")
+	
+end)
+
 function f:ProcessDebuffs(sT, sdTimer)
 	--only process for as many timers as we are using
-	local slotNum = 0
 	for i=1, MAX_TIMERS do
-		local name, _, icon, count, _, duration, expTime, unitCaster, _, _, spellId = UnitAura(sT, i, 'HARMFUL|PLAYER')
-		if not name then break end 
-		--UnitIsUnit is used JUST IN CASE (you never know lol)
+		local name, _, icon, count, _, duration, expTime, unitCaster, _, _, spellId = UnitAura(sT, i, 'PLAYER|HARMFUL')
 		--check for duration > 0 for the evil DIVIDE BY ZERO
-		if name and unitCaster and unitCaster == "player" and duration and duration > 0 then
+		if name and duration and duration > 0 then
 			local beforeEnd = expTime - GetTime()
 			local startTime = (expTime - duration)
 			local totalDuration = (expTime - startTime) --total duration of the spell
@@ -375,75 +406,61 @@ function f:ProcessDebuffs(sT, sdTimer)
 			local barPercent = (totalBarLength / string.len(BAR_TEXT)) * 100
 		
 			if barPercent > 0 or beforeEnd > 0 or totalBarLength > 0 then
-				--get the next timer slot we can use
-				slotNum = slotNum + 1
-				if not sdTimer[slotNum] then sdTimer[slotNum] = f:CreateDebuffTimers() end --create the timer if it doesn't exist
-				sdTimer[slotNum].id = sT
-				sdTimer[slotNum].spellName = name
-				sdTimer[slotNum].spellId = spellId
-				sdTimer[slotNum].iconTex = icon
-				sdTimer[slotNum].icon:SetTexture(icon)
-				sdTimer[slotNum].startTime = startTime
-				sdTimer[slotNum].durationTime = duration
-				sdTimer[slotNum].beforeEnd = beforeEnd
-				sdTimer[slotNum].endTime = expTime
-				sdTimer[slotNum].tmpBL = totalBarLength
-				sdTimer[slotNum].stacks = count or 0
-				sdTimer[slotNum].percent = barPercent
-				sdTimer[slotNum].active = true
-				if not sdTimer[slotNum]:IsVisible() then sdTimer[slotNum]:Show() end
+				--data
+				sdTimer.data[i].id = sT
+				sdTimer.data[i].spellName = name
+				sdTimer.data[i].spellId = spellId
+				sdTimer.data[i].iconTex = icon
+				sdTimer.data[i].startTime = startTime
+				sdTimer.data[i].durationTime = duration
+				sdTimer.data[i].beforeEnd = beforeEnd
+				sdTimer.data[i].endTime = expTime
+				sdTimer.data[i].totalBarLength = totalBarLength
+				sdTimer.data[i].stacks = count or 0
+				sdTimer.data[i].percent = barPercent
+				sdTimer.data[i].active = true
+				
 				--Debug("(1) Time: "..tostring(GetTime()).."  |  Start: "..tostring(expTime - duration).."  |  Duration: "..tostring(duration).."  |  Expiration: "..tostring(expTime))
 				--Debug("<Percentage> "..tostring(sdTimer[slotNum].percent) )
 			end
+		else
+			sdTimer.data[i].active = false
 		end
 	end
 
-	--clear everything else
-	for i=(slotNum+1), #sdTimer do
-		if sdTimer[i] then
-			sdTimer[i].active = false
-			sdTimer[i]:Hide()
-		end
-	end
-	if slotNum > 0 then
-		f:ArrangeDebuffs(false, sT)
-	end
+	f:ArrangeDebuffs(sT)
 end
 
 function f:ClearDebuffs(sdTimer)
 	local adj = 0
 
-	for i=1, #sdTimer do
-		if sdTimer[i].active then
-			sdTimer[i].active = false
-		end
-		--reset the order
-		if XDT_DB.grow then
-			sdTimer[i]:ClearAllPoints()
-			sdTimer[i]:SetPoint("TOPLEFT", pointT[sdTimer[i].id], "BOTTOMRIGHT", 0, adj)
-		else
-			sdTimer[i]:ClearAllPoints()
-			sdTimer[i]:SetPoint("BOTTOMLEFT",  pointT[sdTimer[i].id], "TOPRIGHT", 0, (adj * -1))
-		end
-		adj = adj - BAR_ADJUST
-
+	for i=1, MAX_TIMERS do
+		sdTimer.data[i].active = false
 		sdTimer[i]:Hide()
 	end
 	
 end
 
-function f:ArrangeDebuffs(throttle, id)
-	--to prevent spam and reduce CPU use
-	if throttle then
-		if not f.ADT then f.ADT = GetTime() end
-		if (GetTime() - f.ADT) < 0.1 then
-			return
-		end
-		f.ADT = GetTime()
-	end
+local function deepcopy(orig)
+    local orig_type = type(orig)
+    local copy
+    if orig_type == 'table' then
+        copy = {}
+        for orig_key, orig_value in next, orig, nil do
+            copy[deepcopy(orig_key)] = deepcopy(orig_value)
+        end
+        setmetatable(copy, deepcopy(getmetatable(orig)))
+    else -- number, string, boolean, etc
+        copy = orig
+    end
+    return copy
+end
+
+function f:ArrangeDebuffs(id)
 
 	local adj = 0
 	local sdTimer
+	local tmpList = {}
 	
 	if id == "target" then
 		sdTimer = timers
@@ -453,74 +470,57 @@ function f:ArrangeDebuffs(throttle, id)
 		return
 	end
 	
-	--hides
-	for i=1, #sdTimer do
-		if not sdTimer[i].active then
-			sdTimer[i]:Hide()
+	for i=1, MAX_TIMERS do
+		if sdTimer.data[i].active then
+			table.insert(tmpList, deepcopy(sdTimer.data[i]))
+			--Debug(i)
 		end
-		
 	end
-
+	
 	if XDT_DB.grow then
 		--bars will grow down
 		if XDT_DB.sort then
 			--sort from shortest to longest
-			table.sort(sdTimer, function(a,b)
-				if a.active == true and b.active == false then
-					return true;
-				elseif a.active and b.active then
-					return (a.percent < b.percent);
-				end
-				return false;
-			end)
+			table.sort(tmpList, function(a,b) return (a.percent < b.percent) end)
+			
 		else
 			--sort from longest to shortest
-			table.sort(sdTimer, function(a,b)
-				if a.active == true and b.active == false then
-					return true;
-				elseif a.active and b.active then
-					return (a.percent > b.percent);
-				end
-				return false;
-			end)
+			table.sort(tmpList, function(a,b) return (a.percent > b.percent) end)
+			
 		end
 	else
 		--bars will grow up
 		if XDT_DB.sort then
 			--sort from shortest to longest
-			table.sort(sdTimer, function(a,b)
-				if a.active == true and b.active == false then
-					return true;
-				elseif a.active and b.active then
-					return (a.percent > b.percent);
-				end
-				return false;
-			end)
+			table.sort(tmpList, function(a,b) return (a.percent > b.percent) end)
+			
 		else
 			--sort from longest to shortest
-			table.sort(sdTimer, function(a,b)
-				if a.active == true and b.active == false then
-					return true;
-				elseif a.active and b.active then
-					return (a.percent < b.percent);
-				end
-				return false;
-			end)
+			table.sort(tmpList, function(a,b) return (a.percent < b.percent) end)
 		end
 	end
-
-	--rearrange order
-	for i=1, #sdTimer do
-		if XDT_DB.grow then
-			sdTimer[i]:ClearAllPoints()
-			sdTimer[i]:SetPoint("TOPLEFT", pointT[sdTimer[i].id], "BOTTOMRIGHT", 0, adj)
-		else
-			sdTimer[i]:ClearAllPoints()
-			sdTimer[i]:SetPoint("BOTTOMLEFT", pointT[sdTimer[i].id], "TOPRIGHT", 0, (adj * -1))
-		end
-		adj = adj - BAR_ADJUST
-    end
 	
+	for i=1, MAX_TIMERS do
+		if tmpList[i] then
+			sdTimer.data[i] = tmpList[i]
+			
+			sdTimer[i].Bar:SetText( string.sub(BAR_TEXT, 1, sdTimer.data[i].totalBarLength) )
+			sdTimer[i].Bar:SetTextColor(f:getBarColor(sdTimer.data[i].durationTime, sdTimer.data[i].beforeEnd))
+			sdTimer[i].icon:SetTexture(sdTimer.data[i].iconTex)
+			if sdTimer.data[i].stacks > 0 then
+				sdTimer[i].stacktext:SetText(sdTimer.data[i].stacks)
+			else
+				sdTimer[i].stacktext:SetText(nil)
+			end
+			sdTimer[i].timetext:SetText(f:GetTimeText(ceil(sdTimer.data[i].beforeEnd)))
+	
+			sdTimer[i]:Show()
+		else
+			sdTimer.data[i].active = false
+			sdTimer[i]:Hide()
+		end
+    end
+
 end
 
 ----------------------
@@ -609,5 +609,5 @@ function f:GetTimeText(timeLeft)
 		return nil
 	end
 end
-		
+
 if IsLoggedIn() then f:PLAYER_LOGIN() else f:RegisterEvent("PLAYER_LOGIN") end
