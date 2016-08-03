@@ -33,8 +33,9 @@ local function Debug(...)
     if debugf then debugf:AddMessage(string.join(", ", tostringall(...))) end
 end
 
-timers.data = {}
-timersFocus.data = {}
+--debuff arrays
+timers.debuffs = {}
+timersFocus.debuffs = {}
 
 ----------------------
 --      Enable      --
@@ -271,9 +272,7 @@ end
 function f:CreateDebuffTimers()
 	
     local Frm = CreateFrame("Frame", nil, UIParent)
-	
-	Frm.data = {}
-    Frm.active = false
+
     Frm:SetWidth(ICON_SIZE)
     Frm:SetHeight(ICON_SIZE)
 	Frm:SetFrameStrata("LOW")
@@ -317,8 +316,8 @@ function f:generateBars()
 	for i=1, MAX_TIMERS do
 		timers[i] = f:CreateDebuffTimers()
 		timersFocus[i] = f:CreateDebuffTimers()
-		if not timers.data[i] then timers.data[i] = {} end
-		if not timersFocus.data[i] then timersFocus.data[i] = {} end
+		if not timers.debuffs[i] then timers.debuffs[i] = {} end
+		if not timersFocus.debuffs[i] then timersFocus.debuffs[i] = {} end
 	end
 		
 	--rearrange order
@@ -340,8 +339,6 @@ function f:generateBars()
 end
 
 function f:ProcessDebuffBar(data)
-	if not data.active then return end --just in case
-	
 	local beforeEnd = data.endTime - GetTime()
 	-- local percentTotal = (beforeEnd / data.durationTime)
 	-- local percentFinal = ceil(percentTotal * 100)
@@ -381,30 +378,29 @@ f:SetScript("OnUpdate", function(self, elapsed)
 	local fCount = 0
 	
 	for i=1, MAX_TIMERS do
-		if timers.data[i].active then
-			self:ProcessDebuffBar(timers.data[i])
+		if timers.debuffs[i].active then
+			self:ProcessDebuffBar(timers.debuffs[i])
 			tCount = tCount + 1
 		end
-		if timersFocus.data[i].active then
-			self:ProcessDebuffBar(timersFocus.data[i])
+		if timersFocus.debuffs[i].active then
+			self:ProcessDebuffBar(timersFocus.debuffs[i])
 			fCount = fCount + 1
 		end
 	end
 	
 	--no need to arrange the bars if there is nothing to work with, uncessary if no target or focus
 	if tCount > 0 then
-		f:ArrangeDebuffs("target")
+		f:ShowDebuffs("target")
 	end
 	if fCount > 0 then
-		f:ArrangeDebuffs("focus")
+		f:ShowDebuffs("focus")
 	end
 
 	
 end)
 
 function f:ProcessDebuffs(id)
-	--only process for as many timers as we are using
-	local sdTimer = timerList[id]
+	local sdTimer = timerList[id] --makes things easier to read
 	
 	for i=1, MAX_TIMERS do
 		local name, _, icon, count, _, duration, expTime, unitCaster, _, _, spellId = UnitAura(id, i, 'PLAYER|HARMFUL')
@@ -418,63 +414,47 @@ function f:ProcessDebuffs(id)
 			local barPercent = (totalBarLength / string.len(BAR_TEXT)) * 100
 		
 			if barPercent > 0 or beforeEnd > 0 or totalBarLength > 0 then
-				--data
-				sdTimer.data[i].id = id
-				sdTimer.data[i].spellName = name
-				sdTimer.data[i].spellId = spellId
-				sdTimer.data[i].iconTex = icon
-				sdTimer.data[i].startTime = startTime
-				sdTimer.data[i].durationTime = duration
-				sdTimer.data[i].beforeEnd = beforeEnd
-				sdTimer.data[i].endTime = expTime
-				sdTimer.data[i].totalBarLength = totalBarLength
-				sdTimer.data[i].stacks = count or 0
-				sdTimer.data[i].percent = barPercent
-				sdTimer.data[i].active = true
+				--debuffs
+				sdTimer.debuffs[i].id = id
+				sdTimer.debuffs[i].spellName = name
+				sdTimer.debuffs[i].spellId = spellId
+				sdTimer.debuffs[i].iconTex = icon
+				sdTimer.debuffs[i].startTime = startTime
+				sdTimer.debuffs[i].durationTime = duration
+				sdTimer.debuffs[i].beforeEnd = beforeEnd
+				sdTimer.debuffs[i].endTime = expTime
+				sdTimer.debuffs[i].totalBarLength = totalBarLength
+				sdTimer.debuffs[i].stacks = count or 0
+				sdTimer.debuffs[i].percent = barPercent
+				sdTimer.debuffs[i].active = true
 			end
 		else
-			sdTimer.data[i].active = false
+			sdTimer.debuffs[i].active = false
 		end
 	end
 
-	f:ArrangeDebuffs(id)
+	f:ShowDebuffs(id)
 end
 
 function f:ClearDebuffs(id)
-	local sdTimer = timerList[id]
+	local sdTimer = timerList[id] --makes things easier to read
 	local adj = 0
 
 	for i=1, MAX_TIMERS do
-		sdTimer.data[i].active = false
+		sdTimer.debuffs[i].active = false
 		sdTimer[i]:Hide()
 	end
 	
 end
 
-local function deepcopy(orig)
-    local orig_type = type(orig)
-    local copy
-    if orig_type == 'table' then
-        copy = {}
-        for orig_key, orig_value in next, orig, nil do
-            copy[deepcopy(orig_key)] = deepcopy(orig_value)
-        end
-        setmetatable(copy, deepcopy(getmetatable(orig)))
-    else -- number, string, boolean, etc
-        copy = orig
-    end
-    return copy
-end
-
-function f:ArrangeDebuffs(id)
+function f:ShowDebuffs(id)
 
 	if locked then return end
 	locked = true
 	
-	local adj = 0
 	local sdTimer
 	local tmpList = {}
-	
+
 	if id == "target" then
 		sdTimer = timers
 	elseif id == "focus" then
@@ -485,8 +465,8 @@ function f:ArrangeDebuffs(id)
 	end
 	
 	for i=1, MAX_TIMERS do
-		if sdTimer.data[i].active then
-			table.insert(tmpList, deepcopy(sdTimer.data[i]))
+		if sdTimer.debuffs[i].active then
+			table.insert(tmpList, sdTimer.debuffs[i])
 		end
 	end
 	
@@ -515,24 +495,22 @@ function f:ArrangeDebuffs(id)
 	
 	for i=1, MAX_TIMERS do
 		if tmpList[i] then
-			sdTimer.data[i] = tmpList[i]
-			
 			--display the information
 			---------------------------------------
-			sdTimer[i].Bar:SetText( string.sub(BAR_TEXT, 1, sdTimer.data[i].totalBarLength) )
-			sdTimer[i].Bar:SetTextColor(f:getBarColor(sdTimer.data[i].durationTime, sdTimer.data[i].beforeEnd))
-			sdTimer[i].icon:SetTexture(sdTimer.data[i].iconTex)
-			if sdTimer.data[i].stacks > 0 then
-				sdTimer[i].stacktext:SetText(sdTimer.data[i].stacks)
+			sdTimer[i].Bar:SetText( string.sub(BAR_TEXT, 1, tmpList[i].totalBarLength) )
+			sdTimer[i].Bar:SetTextColor(f:getBarColor(tmpList[i].durationTime, tmpList[i].beforeEnd))
+			sdTimer[i].icon:SetTexture(tmpList[i].iconTex)
+			if tmpList[i].stacks > 0 then
+				sdTimer[i].stacktext:SetText(tmpList[i].stacks)
 			else
 				sdTimer[i].stacktext:SetText(nil)
 			end
-			sdTimer[i].timetext:SetText(f:GetTimeText(ceil(sdTimer.data[i].beforeEnd)))
+			sdTimer[i].timetext:SetText(f:GetTimeText(ceil(tmpList[i].beforeEnd)))
 			---------------------------------------
 			
 			sdTimer[i]:Show()
 		else
-			sdTimer.data[i].active = false
+			sdTimer.debuffs[i].active = false  --just in case
 			sdTimer[i]:Hide()
 		end
     end
