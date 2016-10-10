@@ -104,6 +104,7 @@ function f:PLAYER_LOGIN()
 					XDT_DB.grow = true
 					DEFAULT_CHAT_FRAME:AddMessage("xanDebuffTimers: Bars will now grow [|cFF99CC33DOWN|r]")
 				end
+				f:adjustBars()
 				return true
 			elseif c and c:lower() == "sort" then
 				if XDT_DB.sort then
@@ -114,6 +115,9 @@ function f:PLAYER_LOGIN()
 					DEFAULT_CHAT_FRAME:AddMessage("xanDebuffTimers: Bars sort [|cFF99CC33ASCENDING|r]")
 				end
 				return true
+			elseif c and c:lower() == "reload" then
+				 f:ReloadDebuffs()
+				return true
 			end
 		end
 
@@ -122,6 +126,7 @@ function f:PLAYER_LOGIN()
 		DEFAULT_CHAT_FRAME:AddMessage("/xdt scale # - sets the scale size of the bars")
 		DEFAULT_CHAT_FRAME:AddMessage("/xdt grow - changes the direction in which the bars grow (UP/DOWN)")
 		DEFAULT_CHAT_FRAME:AddMessage("/xdt sort - changes the sorting of the bars. (ASCENDING/DESCENDING)")
+		DEFAULT_CHAT_FRAME:AddMessage("/xdt reload - reload all the debuff bars")
 	end
 	
 	local ver = tonumber(GetAddOnMetadata("xanDebuffTimers","Version")) or 'Unknown'
@@ -166,6 +171,13 @@ local eventSwitch = {
 	["SPELL_HEAL"] = true,
 	["SPELL_DAMAGE"] = true,
 	["SPELL_PERIODIC_DAMAGE"] = true,
+	--added new
+	["SPELL_DRAIN"] = true,
+	["SPELL_LEECH"] = true,
+	["SPELL_PERIODIC_DRAIN"] = true,
+	["SPELL_PERIODIC_LEECH"] = true,
+	["DAMAGE_SHIELD"] = true,
+	["DAMAGE_SPLIT"] = true,
 }
 
 function f:COMBAT_LOG_EVENT_UNFILTERED(event, timestamp, eventType, hideCaster, sourceGUID, sourceName, srcFlags, sourceRaidFlags, dstGUID, destName, destFlags, destRaidFlags, spellID, spellName, spellSchool, auraType, amount)
@@ -338,6 +350,24 @@ function f:generateBars()
 
 end
 
+function f:adjustBars()
+	local adj = 0
+	for i=1, MAX_TIMERS do
+		if XDT_DB.grow then
+			timers[i]:ClearAllPoints()
+			timers[i]:SetPoint("TOPLEFT", XDT_Anchor, "BOTTOMRIGHT", 0, adj)
+			timersFocus[i]:ClearAllPoints()
+			timersFocus[i]:SetPoint("TOPLEFT", XDT_FocusAnchor, "BOTTOMRIGHT", 0, adj)			
+		else
+			timers[i]:ClearAllPoints()
+			timers[i]:SetPoint("BOTTOMLEFT", XDT_Anchor, "TOPRIGHT", 0, (adj * -1))
+			timersFocus[i]:ClearAllPoints()
+			timersFocus[i]:SetPoint("BOTTOMLEFT", XDT_FocusAnchor, "TOPRIGHT", 0, (adj * -1))			
+		end
+		adj = adj - BAR_ADJUST
+    end
+end
+
 function f:ProcessDebuffBar(data)
 	local beforeEnd = data.endTime - GetTime()
 	-- local percentTotal = (beforeEnd / data.durationTime)
@@ -445,6 +475,14 @@ function f:ClearDebuffs(id)
 		sdTimer[i]:Hide()
 	end
 	
+end
+
+function f:ReloadDebuffs()
+	f:ClearDebuffs("target")
+	f:ClearDebuffs("focus")
+
+	f:ProcessDebuffs("target")
+	f:ProcessDebuffs("focus")
 end
 
 function f:ShowDebuffs(id)
