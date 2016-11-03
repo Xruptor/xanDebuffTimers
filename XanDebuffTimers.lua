@@ -548,7 +548,6 @@ function f:ShowDebuffs(id)
 			
 			sdTimer[i]:Show()
 		else
-			sdTimer.debuffs[i].active = false  --just in case
 			sdTimer[i]:Hide()
 		end
     end
