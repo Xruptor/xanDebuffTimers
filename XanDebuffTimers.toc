@@ -2,8 +2,16 @@
 ## Title: xanDebuffTimers
 ## Notes: A small text based progress bar system for target debuffs.
 ## Author: Xruptor
-## Version: 4.1
+## Version: 4.2
+## X-Curse-Project-ID: 22071
+## X-WoWI-ID: 15683
 ## OptionalDeps: tekDebug
 ## SavedVariablesPerCharacter: XDT_DB
 
+libs\LibStub\LibStub.lua
+libs\AceLocale-3.0\AceLocale-3.0.xml
+
+locale\enUS.lua
+
 xanDebuffTimers.lua
+config.lua

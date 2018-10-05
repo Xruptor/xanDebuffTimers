@@ -1,9 +1,31 @@
 
-local timers = {}
-local timersFocus = {}
-local MAX_TIMERS = 15
+local ADDON_NAME, addon = ...
+if not _G[ADDON_NAME] then
+	_G[ADDON_NAME] = CreateFrame("Frame", ADDON_NAME, UIParent)
+end
+addon = _G[ADDON_NAME]
+
+addon:SetScript("OnEvent", function(self, event, ...) if self[event] then return self[event](self, event, ...) end end)
+
+local debugf = tekDebug and tekDebug:GetFrame(ADDON_NAME)
+local function Debug(...)
+    if debugf then debugf:AddMessage(string.join(", ", tostringall(...))) end
+end
+
+local L = LibStub("AceLocale-3.0"):GetLocale(ADDON_NAME)
+
+addon.timers = {}
+addon.timersFocus = {}
+
+--debuff arrays
+addon.timers.debuffs = {}
+addon.timersFocus.debuffs = {}
+
+addon.MAX_TIMERS = 15
+
 local ICON_SIZE = 20
 local BAR_ADJUST = 25
+--40 characters, each worth 2.5 out of 100, to get bar length.  (percent/2.5)  example: 75/2.5 = 30 bar length
 local BAR_TEXT = "llllllllllllllllllllllllllllllllllllllll"
 local band = bit.band
 local locked = false
@@ -21,27 +43,15 @@ local pointT = {
 }
 
 local timerList = {
-	["target"] = timers,
-	["focus"] = timersFocus,
+	["target"] = addon.timers,
+	["focus"] = addon.timersFocus,
 }
-
-local f = CreateFrame("frame","xanDebuffTimers",UIParent)
-f:SetScript("OnEvent", function(self, event, ...) if self[event] then return self[event](self, event, ...) end end)
-
-local debugf = tekDebug and tekDebug:GetFrame("xanDebuffTimers")
-local function Debug(...)
-    if debugf then debugf:AddMessage(string.join(", ", tostringall(...))) end
-end
-
---debuff arrays
-timers.debuffs = {}
-timersFocus.debuffs = {}
 
 ----------------------
 --      Enable      --
 ----------------------
 	
-function f:PLAYER_LOGIN()
+function addon:PLAYER_LOGIN()
 
 	if not XDT_DB then XDT_DB = {} end
 	if XDT_DB.scale == nil then XDT_DB.scale = 1 end
@@ -49,106 +59,82 @@ function f:PLAYER_LOGIN()
 	if XDT_DB.sort == nil then XDT_DB.sort = false end
 
 	--create our anchors
-	f:CreateAnchor("XDT_Anchor", UIParent, "xanDebuffTimers: Target Anchor")
-	f:CreateAnchor("XDT_FocusAnchor", UIParent, "xanDebuffTimers: Focus Anchor")
+	addon:CreateAnchor("XDT_Anchor", UIParent, L.BarTargetAnchor)
+	addon:CreateAnchor("XDT_FocusAnchor", UIParent, L.BarFocusAnchor)
 
 	--create our bars
-	f:generateBars()
+	addon:generateBars()
 	
-	f:UnregisterEvent("PLAYER_LOGIN")
-	f.PLAYER_LOGIN = nil
+	addon:UnregisterEvent("PLAYER_LOGIN")
+	addon.PLAYER_LOGIN = nil
 	
-	f:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-	f:RegisterEvent("PLAYER_TARGET_CHANGED")
-	f:RegisterEvent("PLAYER_FOCUS_CHANGED")
+	addon:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+	addon:RegisterEvent("PLAYER_TARGET_CHANGED")
+	addon:RegisterEvent("PLAYER_FOCUS_CHANGED")
 
-	SLASH_XANDEBUFFTIMERS1 = "/xandebufftimers"
-	SLASH_XANDEBUFFTIMERS2 = "/xdt"
-	SLASH_XANDEBUFFTIMERS3 = "/xandt"
-	SlashCmdList["XANDEBUFFTIMERS"] = function(msg)
+	SLASH_XANDEBUFFTIMERS1 = "/xdt"
+	SlashCmdList["XANDEBUFFTIMERS"] = function(cmd)
 	
-		local a,b,c=strfind(msg, "(%S+)"); --contiguous string of non-space characters
+		local a,b,c=strfind(cmd, "(%S+)"); --contiguous string of non-space characters
 		
 		if a then
-			if c and c:lower() == "anchor" then
-				if XDT_Anchor:IsVisible() then
-					XDT_Anchor:Hide()
-					XDT_FocusAnchor:Hide()
-				else
-					XDT_Anchor:Show()
-					XDT_FocusAnchor:Show()
-				end
+			if c and c:lower() == L.SlashAnchor then
+				addon.aboutPanel.btnAnchor.func()
 				return true
-			elseif c and c:lower() == "scale" then
+			elseif c and c:lower() == L.SlashReset then
+				addon.aboutPanel.btnReset.func()
+				return true
+			elseif c and c:lower() == L.SlashScale then
 				if b then
-					local scalenum = strsub(msg, b+2)
-					if scalenum and scalenum ~= "" and tonumber(scalenum) then
-						XDT_DB.scale = tonumber(scalenum)
-						for i=1, MAX_TIMERS do
-							if timers[i] then
-								timers[i]:SetScale(tonumber(scalenum))
-							end
-							if timersFocus[i] then
-								timersFocus[i]:SetScale(tonumber(scalenum))
-							end
-						end
-						DEFAULT_CHAT_FRAME:AddMessage("xanDebuffTimers: Scale has been set to ["..tonumber(scalenum).."]")
-						return true
+					local scalenum = strsub(cmd, b+2)
+					if scalenum and scalenum ~= "" and tonumber(scalenum) and tonumber(scalenum) > 0 and tonumber(scalenum) <= 200 then
+						addon.aboutPanel.sliderScale.func(tonumber(scalenum))
+					else
+						DEFAULT_CHAT_FRAME:AddMessage(L.SlashScaleSetInvalid)
 					end
+					return true
 				end
-			elseif c and c:lower() == "grow" then
-				if XDT_DB.grow then
-					XDT_DB.grow = false
-					DEFAULT_CHAT_FRAME:AddMessage("xanDebuffTimers: Bars will now grow [|cFF99CC33UP|r]")
-				else
-					XDT_DB.grow = true
-					DEFAULT_CHAT_FRAME:AddMessage("xanDebuffTimers: Bars will now grow [|cFF99CC33DOWN|r]")
-				end
-				f:adjustBars()
+			elseif c and c:lower() == L.SlashGrow then
+				addon.aboutPanel.btnGrow.func(true)
 				return true
-			elseif c and c:lower() == "sort" then
-				if XDT_DB.sort then
-					XDT_DB.sort = false
-					DEFAULT_CHAT_FRAME:AddMessage("xanDebuffTimers: Bars sort [|cFF99CC33DESCENDING|r]")
-				else
-					XDT_DB.sort = true
-					DEFAULT_CHAT_FRAME:AddMessage("xanDebuffTimers: Bars sort [|cFF99CC33ASCENDING|r]")
-				end
+			elseif c and c:lower() == L.SlashSort then
+				addon.aboutPanel.btnSort.func(true)
 				return true
-			elseif c and c:lower() == "reload" then
-				 f:ReloadDebuffs()
+			elseif c and c:lower() == L.SlashReload then
+				 addon.aboutPanel.btnReloadDebuffs.func()
 				return true
 			end
 		end
 
-		DEFAULT_CHAT_FRAME:AddMessage("xanDebuffTimers")
-		DEFAULT_CHAT_FRAME:AddMessage("/xdt anchor - toggles a movable anchor")
-		DEFAULT_CHAT_FRAME:AddMessage("/xdt scale # - sets the scale size of the bars")
-		DEFAULT_CHAT_FRAME:AddMessage("/xdt grow - changes the direction in which the bars grow (UP/DOWN)")
-		DEFAULT_CHAT_FRAME:AddMessage("/xdt sort - changes the sorting of the bars. (ASCENDING/DESCENDING)")
-		DEFAULT_CHAT_FRAME:AddMessage("/xdt reload - reload all the debuff bars")
+		DEFAULT_CHAT_FRAME:AddMessage(ADDON_NAME, 64/255, 224/255, 208/255)
+		DEFAULT_CHAT_FRAME:AddMessage("/xdt "..L.SlashAnchor.." - "..L.SlashAnchorInfo)
+		DEFAULT_CHAT_FRAME:AddMessage("/xdt "..L.SlashReset.." - "..L.SlashResetInfo)
+		DEFAULT_CHAT_FRAME:AddMessage("/xdt "..L.SlashScale.." # - "..L.SlashScaleInfo)
+		DEFAULT_CHAT_FRAME:AddMessage("/xdt "..L.SlashGrow.." - "..L.SlashGrowInfo)
+		DEFAULT_CHAT_FRAME:AddMessage("/xdt "..L.SlashSort.." - "..L.SlashSortInfo)
+		DEFAULT_CHAT_FRAME:AddMessage("/xdt "..L.SlashReload .." - "..L.SlashReloadInfo)
 	end
 	
-	local ver = tonumber(GetAddOnMetadata("xanDebuffTimers","Version")) or 'Unknown'
-	DEFAULT_CHAT_FRAME:AddMessage("|cFF99CC33xanDebuffTimers|r [v|cFFDF2B2B"..ver.."|r] loaded: /xdt")
+	local ver = GetAddOnMetadata(ADDON_NAME,"Version") or '1.0'
+	DEFAULT_CHAT_FRAME:AddMessage(string.format("|cFF99CC33%s|r [v|cFF20ff20%s|r] loaded:   /xdt", ADDON_NAME, ver or "1.0"))
 end
 	
-function f:PLAYER_TARGET_CHANGED()
+function addon:PLAYER_TARGET_CHANGED()
 	if UnitName("target") and UnitGUID("target") then
 		targetGUID = UnitGUID("target")
-		f:ProcessDebuffs("target")
+		addon:ProcessDebuffs("target")
 	else
-		f:ClearDebuffs("target")
+		addon:ClearDebuffs("target")
 		targetGUID = 0
 	end
 end
 
-function f:PLAYER_FOCUS_CHANGED()
+function addon:PLAYER_FOCUS_CHANGED()
 	if UnitName("focus") and UnitGUID("focus") then
 		focusGUID = UnitGUID("focus")
-		f:ProcessDebuffs("focus")
+		addon:ProcessDebuffs("focus")
 	else
-		f:ClearDebuffs("focus")
+		addon:ClearDebuffs("focus")
 		focusGUID = 0
 	end
 end
@@ -182,7 +168,7 @@ local eventSwitch = {
 
 local CombatLogGetCurrentEventInfo = CombatLogGetCurrentEventInfo
 
-function f:COMBAT_LOG_EVENT_UNFILTERED()
+function addon:COMBAT_LOG_EVENT_UNFILTERED()
 
 	--local timestamp, eventType, hideCaster, sourceGUID, sourceName, srcFlags, sourceRaidFlags, dstGUID, destName, destFlags, destRaidFlags, spellID, spellName, spellSchool, auraType, amount
 	local timestamp, eventType, _, sourceGUID, _, srcFlags, _, dstGUID = CombatLogGetCurrentEventInfo()
@@ -192,21 +178,21 @@ function f:COMBAT_LOG_EVENT_UNFILTERED()
 		--NOTE the reason an elseif isn't used is because some dorks may have
 		--their current target as their focus as well
 		if dstGUID == targetGUID then
-			f:ClearDebuffs("target")
+			addon:ClearDebuffs("target")
 			targetGUID = 0
 		end
 		if dstGUID == focusGUID then
-			f:ClearDebuffs("focus")
+			addon:ClearDebuffs("focus")
 			focusGUID = 0
 		end
 		
 	elseif eventSwitch[eventType] and band(srcFlags, COMBATLOG_OBJECT_AFFILIATION_MINE) ~= 0 then
 		--process the spells based on GUID
 		if dstGUID == targetGUID then
-			f:ProcessDebuffs("target")
+			addon:ProcessDebuffs("target")
 		end
 		if dstGUID == focusGUID then
-			f:ProcessDebuffs("focus")
+			addon:ProcessDebuffs("focus")
 		end
     end
 end
@@ -215,7 +201,7 @@ end
 --  Frame Creation  --
 ----------------------
 
-function f:CreateAnchor(name, parent, desc)
+function addon:CreateAnchor(name, parent, desc)
 
 	--create the anchor
 	local frameAnchor = CreateFrame("Frame", name, parent)
@@ -269,7 +255,7 @@ function f:CreateAnchor(name, parent, desc)
 		if( frame.isMoving ) then
 			frame.isMoving = nil
 			frame:StopMovingOrSizing()
-			f:SaveLayout(frame:GetName())
+			addon:SaveLayout(frame:GetName())
 		end
 	end)
 	
@@ -283,10 +269,10 @@ function f:CreateAnchor(name, parent, desc)
 
 	frameAnchor:Hide() -- hide it by default
 	
-	f:RestoreLayout(name)
+	addon:RestoreLayout(name)
 end
 
-function f:CreateDebuffTimers()
+function addon:CreateDebuffTimers()
 	
     local Frm = CreateFrame("Frame", nil, UIParent)
 
@@ -303,7 +289,7 @@ function f:CreateDebuffTimers()
     Frm.icon:SetAllPoints(true)
     
     Frm.stacktext = Frm:CreateFontString(nil, "OVERLAY");
-    Frm.stacktext:SetFont("Fonts\\FRIZQT__.TTF",10,"OUTLINE")
+    Frm.stacktext:SetFont(L.GetFontType,10,"OUTLINE")
     Frm.stacktext:SetWidth(Frm.icon:GetWidth())
     Frm.stacktext:SetHeight(Frm.icon:GetHeight())
     Frm.stacktext:SetJustifyH("RIGHT")
@@ -311,7 +297,7 @@ function f:CreateDebuffTimers()
     Frm.stacktext:SetPoint("RIGHT", Frm.icon, "RIGHT",1,-5)
     
     Frm.timetext = Frm:CreateFontString(nil, "OVERLAY");
-    Frm.timetext:SetFont("Fonts\\FRIZQT__.TTF",10,"OUTLINE")
+    Frm.timetext:SetFont(L.GetFontType,10,"OUTLINE")
     Frm.timetext:SetJustifyH("RIGHT")
     Frm.timetext:SetPoint("RIGHT", Frm.icon, "LEFT" , -5, 0)
 
@@ -326,54 +312,54 @@ function f:CreateDebuffTimers()
 	
 end
 
-function f:generateBars()
+function addon:generateBars()
 	local adj = 0
 	
 	--lets create the max bars to use on screen for future sorting
-	for i=1, MAX_TIMERS do
-		timers[i] = f:CreateDebuffTimers()
-		timersFocus[i] = f:CreateDebuffTimers()
-		if not timers.debuffs[i] then timers.debuffs[i] = {} end
-		if not timersFocus.debuffs[i] then timersFocus.debuffs[i] = {} end
+	for i=1, addon.MAX_TIMERS do
+		addon.timers[i] = addon:CreateDebuffTimers()
+		addon.timersFocus[i] = addon:CreateDebuffTimers()
+		if not addon.timers.debuffs[i] then addon.timers.debuffs[i] = {} end
+		if not addon.timersFocus.debuffs[i] then addon.timersFocus.debuffs[i] = {} end
 	end
 		
 	--rearrange order
-	for i=1, MAX_TIMERS do
+	for i=1, addon.MAX_TIMERS do
 		if XDT_DB.grow then
-			timers[i]:ClearAllPoints()
-			timers[i]:SetPoint("TOPLEFT", XDT_Anchor, "BOTTOMRIGHT", 0, adj)
-			timersFocus[i]:ClearAllPoints()
-			timersFocus[i]:SetPoint("TOPLEFT", XDT_FocusAnchor, "BOTTOMRIGHT", 0, adj)			
+			addon.timers[i]:ClearAllPoints()
+			addon.timers[i]:SetPoint("TOPLEFT", XDT_Anchor, "BOTTOMRIGHT", 0, adj)
+			addon.timersFocus[i]:ClearAllPoints()
+			addon.timersFocus[i]:SetPoint("TOPLEFT", XDT_FocusAnchor, "BOTTOMRIGHT", 0, adj)			
 		else
-			timers[i]:ClearAllPoints()
-			timers[i]:SetPoint("BOTTOMLEFT", XDT_Anchor, "TOPRIGHT", 0, (adj * -1))
-			timersFocus[i]:ClearAllPoints()
-			timersFocus[i]:SetPoint("BOTTOMLEFT", XDT_FocusAnchor, "TOPRIGHT", 0, (adj * -1))			
+			addon.timers[i]:ClearAllPoints()
+			addon.timers[i]:SetPoint("BOTTOMLEFT", XDT_Anchor, "TOPRIGHT", 0, (adj * -1))
+			addon.timersFocus[i]:ClearAllPoints()
+			addon.timersFocus[i]:SetPoint("BOTTOMLEFT", XDT_FocusAnchor, "TOPRIGHT", 0, (adj * -1))			
 		end
 		adj = adj - BAR_ADJUST
     end
 
 end
 
-function f:adjustBars()
+function addon:adjustBars()
 	local adj = 0
-	for i=1, MAX_TIMERS do
+	for i=1, addon.MAX_TIMERS do
 		if XDT_DB.grow then
-			timers[i]:ClearAllPoints()
-			timers[i]:SetPoint("TOPLEFT", XDT_Anchor, "BOTTOMRIGHT", 0, adj)
-			timersFocus[i]:ClearAllPoints()
-			timersFocus[i]:SetPoint("TOPLEFT", XDT_FocusAnchor, "BOTTOMRIGHT", 0, adj)			
+			addon.timers[i]:ClearAllPoints()
+			addon.timers[i]:SetPoint("TOPLEFT", XDT_Anchor, "BOTTOMRIGHT", 0, adj)
+			addon.timersFocus[i]:ClearAllPoints()
+			addon.timersFocus[i]:SetPoint("TOPLEFT", XDT_FocusAnchor, "BOTTOMRIGHT", 0, adj)			
 		else
-			timers[i]:ClearAllPoints()
-			timers[i]:SetPoint("BOTTOMLEFT", XDT_Anchor, "TOPRIGHT", 0, (adj * -1))
-			timersFocus[i]:ClearAllPoints()
-			timersFocus[i]:SetPoint("BOTTOMLEFT", XDT_FocusAnchor, "TOPRIGHT", 0, (adj * -1))			
+			addon.timers[i]:ClearAllPoints()
+			addon.timers[i]:SetPoint("BOTTOMLEFT", XDT_Anchor, "TOPRIGHT", 0, (adj * -1))
+			addon.timersFocus[i]:ClearAllPoints()
+			addon.timersFocus[i]:SetPoint("BOTTOMLEFT", XDT_FocusAnchor, "TOPRIGHT", 0, (adj * -1))			
 		end
 		adj = adj - BAR_ADJUST
     end
 end
 
-function f:ProcessDebuffBar(data)
+function addon:ProcessDebuffBar(data)
 	local beforeEnd = data.endTime - GetTime()
 	-- local percentTotal = (beforeEnd / data.durationTime)
 	-- local percentFinal = ceil(percentTotal * 100)
@@ -404,7 +390,7 @@ end
 ----------------------
 
 --lets use one global OnUpdate instead of individual ones for each debuff bar
-f:SetScript("OnUpdate", function(self, elapsed)
+addon:SetScript("OnUpdate", function(self, elapsed)
 	self.OnUpdateCounter = (self.OnUpdateCounter or 0) + elapsed
 	if self.OnUpdateCounter < 0.05 then return end
 	self.OnUpdateCounter = 0
@@ -412,32 +398,32 @@ f:SetScript("OnUpdate", function(self, elapsed)
 	local tCount = 0
 	local fCount = 0
 	
-	for i=1, MAX_TIMERS do
-		if timers.debuffs[i].active then
-			self:ProcessDebuffBar(timers.debuffs[i])
+	for i=1, addon.MAX_TIMERS do
+		if addon.timers.debuffs[i].active then
+			self:ProcessDebuffBar(addon.timers.debuffs[i])
 			tCount = tCount + 1
 		end
-		if timersFocus.debuffs[i].active then
-			self:ProcessDebuffBar(timersFocus.debuffs[i])
+		if addon.timersFocus.debuffs[i].active then
+			self:ProcessDebuffBar(addon.timersFocus.debuffs[i])
 			fCount = fCount + 1
 		end
 	end
 	
 	--no need to arrange the bars if there is nothing to work with, uncessary if no target or focus
 	if tCount > 0 then
-		f:ShowDebuffs("target")
+		addon:ShowDebuffs("target")
 	end
 	if fCount > 0 then
-		f:ShowDebuffs("focus")
+		addon:ShowDebuffs("focus")
 	end
 
 	
 end)
 
-function f:ProcessDebuffs(id)
+function addon:ProcessDebuffs(id)
 	local sdTimer = timerList[id] --makes things easier to read
 	
-	for i=1, MAX_TIMERS do
+	for i=1, addon.MAX_TIMERS do
 	
 		local name, icon, count, debuffType, duration, expTime, unitCaster, canStealOrPurge, nameplateShowPersonal, spellId = UnitAura(id, i, 'PLAYER|HARMFUL')
 		--check for duration > 0 for the evil DIVIDE BY ZERO
@@ -469,29 +455,29 @@ function f:ProcessDebuffs(id)
 		end
 	end
 
-	f:ShowDebuffs(id)
+	addon:ShowDebuffs(id)
 end
 
-function f:ClearDebuffs(id)
+function addon:ClearDebuffs(id)
 	local sdTimer = timerList[id] --makes things easier to read
 	local adj = 0
 
-	for i=1, MAX_TIMERS do
+	for i=1, addon.MAX_TIMERS do
 		sdTimer.debuffs[i].active = false
 		sdTimer[i]:Hide()
 	end
 	
 end
 
-function f:ReloadDebuffs()
-	f:ClearDebuffs("target")
-	f:ClearDebuffs("focus")
+function addon:ReloadDebuffs()
+	addon:ClearDebuffs("target")
+	addon:ClearDebuffs("focus")
 
-	f:ProcessDebuffs("target")
-	f:ProcessDebuffs("focus")
+	addon:ProcessDebuffs("target")
+	addon:ProcessDebuffs("focus")
 end
 
-function f:ShowDebuffs(id)
+function addon:ShowDebuffs(id)
 
 	if locked then return end
 	locked = true
@@ -500,15 +486,15 @@ function f:ShowDebuffs(id)
 	local tmpList = {}
 
 	if id == "target" then
-		sdTimer = timers
+		sdTimer = addon.timers
 	elseif id == "focus" then
-		sdTimer = timersFocus
+		sdTimer = addon.timersFocus
 	else
 		locked = false
 		return
 	end
 	
-	for i=1, MAX_TIMERS do
+	for i=1, addon.MAX_TIMERS do
 		if sdTimer.debuffs[i].active then
 			table.insert(tmpList, sdTimer.debuffs[i])
 		end
@@ -537,19 +523,19 @@ function f:ShowDebuffs(id)
 		end
 	end
 	
-	for i=1, MAX_TIMERS do
+	for i=1, addon.MAX_TIMERS do
 		if tmpList[i] then
 			--display the information
 			---------------------------------------
 			sdTimer[i].Bar:SetText( string.sub(BAR_TEXT, 1, tmpList[i].totalBarLength) )
-			sdTimer[i].Bar:SetTextColor(f:getBarColor(tmpList[i].durationTime, tmpList[i].beforeEnd))
+			sdTimer[i].Bar:SetTextColor(addon:getBarColor(tmpList[i].durationTime, tmpList[i].beforeEnd))
 			sdTimer[i].icon:SetTexture(tmpList[i].iconTex)
 			if tmpList[i].stacks > 0 then
 				sdTimer[i].stacktext:SetText(tmpList[i].stacks)
 			else
 				sdTimer[i].stacktext:SetText(nil)
 			end
-			sdTimer[i].timetext:SetText(f:GetTimeText(ceil(tmpList[i].beforeEnd)))
+			sdTimer[i].timetext:SetText(addon:GetTimeText(ceil(tmpList[i].beforeEnd)))
 			---------------------------------------
 			
 			sdTimer[i]:Show()
@@ -566,7 +552,7 @@ end
 ----------------------
 	
 	
-function f:SaveLayout(frame)
+function addon:SaveLayout(frame)
 	if type(frame) ~= "string" then return end
 	if not _G[frame] then return end
 	if not XDT_DB then XDT_DB = {} end
@@ -591,7 +577,7 @@ function f:SaveLayout(frame)
 	opt.yOfs = yOfs
 end
 
-function f:RestoreLayout(frame)
+function addon:RestoreLayout(frame)
 	if type(frame) ~= "string" then return end
 	if not _G[frame] then return end
 	if not XDT_DB then XDT_DB = {} end
@@ -612,7 +598,7 @@ function f:RestoreLayout(frame)
 	_G[frame]:SetPoint(opt.point, UIParent, opt.relativePoint, opt.xOfs, opt.yOfs)
 end
 
-function f:getBarColor(dur, expR)
+function addon:getBarColor(dur, expR)
 	local r
 	local g = 1
 	local cur = 2 * expR/dur
@@ -623,7 +609,7 @@ function f:getBarColor(dur, expR)
 	end
 end
 
-function f:GetTimeText(timeLeft)
+function addon:GetTimeText(timeLeft)
 	local hours, minutes, seconds = 0, 0, 0
 	if( timeLeft >= 3600 ) then
 		hours = ceil(timeLeft / 3600)
@@ -638,14 +624,14 @@ function f:GetTimeText(timeLeft)
 	seconds = timeLeft > 0 and timeLeft or 0
 
 	if hours > 0 then
-		return string.format("%dh",hours)
+		return string.format("%d"..L.TimeHour, hours)
 	elseif minutes > 0 then
-		return string.format("%dm",minutes)
+		return string.format("%d"..L.TimeMinute, minutes)
 	elseif seconds > 0 then
-		return string.format("%ds",seconds)
+		return string.format("%d"..L.TimeSecond, seconds)
 	else
 		return nil
 	end
 end
 
-if IsLoggedIn() then f:PLAYER_LOGIN() else f:RegisterEvent("PLAYER_LOGIN") end
+if IsLoggedIn() then addon:PLAYER_LOGIN() else addon:RegisterEvent("PLAYER_LOGIN") end
