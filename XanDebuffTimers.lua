@@ -289,7 +289,7 @@ function addon:CreateDebuffTimers()
     Frm.icon:SetAllPoints(true)
     
     Frm.stacktext = Frm:CreateFontString(nil, "OVERLAY");
-    Frm.stacktext:SetFont(L.GetFontType,10,"OUTLINE")
+    Frm.stacktext:SetFont(STANDARD_TEXT_FONT,10,"OUTLINE")
     Frm.stacktext:SetWidth(Frm.icon:GetWidth())
     Frm.stacktext:SetHeight(Frm.icon:GetHeight())
     Frm.stacktext:SetJustifyH("RIGHT")
@@ -297,7 +297,7 @@ function addon:CreateDebuffTimers()
     Frm.stacktext:SetPoint("RIGHT", Frm.icon, "RIGHT",1,-5)
     
     Frm.timetext = Frm:CreateFontString(nil, "OVERLAY");
-    Frm.timetext:SetFont(L.GetFontType,10,"OUTLINE")
+    Frm.timetext:SetFont(STANDARD_TEXT_FONT,10,"OUTLINE")
     Frm.timetext:SetJustifyH("RIGHT")
     Frm.timetext:SetPoint("RIGHT", Frm.icon, "LEFT" , -5, 0)
 

@@ -216,7 +216,7 @@ function configEvent:PLAYER_LOGIN()
 	addon.aboutPanel.sliderScale = sliderScale
 	
 	--grow
-	local btnGrow = createCheckbutton(addon.aboutPanel, L.SlashGrowInfo)
+	local btnGrow = createCheckbutton(addon.aboutPanel, L.SlashGrowChkBtn)
 	btnGrow:SetScript("OnShow", function() btnGrow:SetChecked(XDT_DB.grow) end)
 	btnGrow.func = function(slashSwitch)
 		local value = XDT_DB.grow
@@ -238,7 +238,7 @@ function configEvent:PLAYER_LOGIN()
 	addon.aboutPanel.btnGrow = btnGrow
 	
 	--sort
-	local btnSort = createCheckbutton(addon.aboutPanel, L.SlashSortInfo)
+	local btnSort = createCheckbutton(addon.aboutPanel, L.SlashSortChkBtn)
 	btnSort:SetScript("OnShow", function() btnSort:SetChecked(XDT_DB.sort) end)
 	btnSort.func = function(slashSwitch)
 		local value = XDT_DB.sort
