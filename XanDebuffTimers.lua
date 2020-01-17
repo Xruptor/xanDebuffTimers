@@ -47,6 +47,8 @@ local timerList = {
 	["focus"] = addon.timersFocus,
 }
 
+local barsLoaded = false
+
 ----------------------
 --      Enable      --
 ----------------------
@@ -338,10 +340,13 @@ function addon:generateBars()
 		end
 		adj = adj - BAR_ADJUST
     end
-
+	
+	barsLoaded = true
 end
 
 function addon:adjustBars()
+	if not barsLoaded then return end
+	
 	local adj = 0
 	for i=1, addon.MAX_TIMERS do
 		if XDT_DB.grow then
@@ -398,6 +403,8 @@ addon:SetScript("OnUpdate", function(self, elapsed)
 	local tCount = 0
 	local fCount = 0
 	
+	if not barsLoaded then return end
+	
 	for i=1, addon.MAX_TIMERS do
 		if addon.timers.debuffs[i].active then
 			self:ProcessDebuffBar(addon.timers.debuffs[i])
@@ -421,6 +428,8 @@ addon:SetScript("OnUpdate", function(self, elapsed)
 end)
 
 function addon:ProcessDebuffs(id)
+	if not barsLoaded then return end
+	
 	local sdTimer = timerList[id] --makes things easier to read
 	
 	for i=1, addon.MAX_TIMERS do
@@ -459,6 +468,8 @@ function addon:ProcessDebuffs(id)
 end
 
 function addon:ClearDebuffs(id)
+	if not barsLoaded then return end
+	
 	local sdTimer = timerList[id] --makes things easier to read
 	local adj = 0
 
@@ -478,7 +489,8 @@ function addon:ReloadDebuffs()
 end
 
 function addon:ShowDebuffs(id)
-
+	if not barsLoaded then return end
+	
 	if locked then return end
 	locked = true
 	
