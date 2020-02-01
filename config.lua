@@ -9,8 +9,9 @@ local configEvent = addon.configEvent
 configEvent:SetScript("OnEvent", function(self, event, ...) if self[event] then return self[event](self, event, ...) end end)
 
 local L = LibStub("AceLocale-3.0"):GetLocale(ADDON_NAME)
-
+local isRetail = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
 local lastObject
+
 local function addConfigEntry(objEntry, adjustX, adjustY)
 	
 	objEntry:ClearAllPoints()
@@ -148,11 +149,15 @@ function configEvent:PLAYER_LOGIN()
 	btnAnchor.func = function()
 		if XDT_Anchor:IsVisible() then
 			XDT_Anchor:Hide()
-			XDT_FocusAnchor:Hide()
+			if isRetail then
+				XDT_FocusAnchor:Hide()
+			end
 			DEFAULT_CHAT_FRAME:AddMessage(L.SlashAnchorOff)
 		else
 			XDT_Anchor:Show()
-			XDT_FocusAnchor:Show()
+			if isRetail then
+				XDT_FocusAnchor:Show()
+			end
 			DEFAULT_CHAT_FRAME:AddMessage(L.SlashAnchorOn)
 		end
 	end
@@ -167,8 +172,10 @@ function configEvent:PLAYER_LOGIN()
 		DEFAULT_CHAT_FRAME:AddMessage(L.SlashResetAlert)
 		XDT_Anchor:ClearAllPoints()
 		XDT_Anchor:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
-		XDT_FocusAnchor:ClearAllPoints()
-		XDT_FocusAnchor:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+		if isRetail then
+			XDT_FocusAnchor:ClearAllPoints()
+			XDT_FocusAnchor:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+		end
 	end
 	btnReset:SetScript("OnClick", btnReset.func)
 	
@@ -190,7 +197,7 @@ function configEvent:PLAYER_LOGIN()
 			if addon.timers[i] then
 				addon.timers[i]:SetScale(XDT_DB.scale)
 			end
-			if addon.timersFocus[i] then
+			if isRetail and addon.timersFocus[i] then
 				addon.timersFocus[i]:SetScale(XDT_DB.scale)
 			end
 		end
@@ -204,7 +211,7 @@ function configEvent:PLAYER_LOGIN()
 			if addon.timers[i] then
 				addon.timers[i]:SetScale(tonumber(value) / 100)
 			end
-			if addon.timersFocus[i] then
+			if isRetail and addon.timersFocus[i] then
 				addon.timersFocus[i]:SetScale(tonumber(value) / 100)
 			end
 		end

@@ -13,6 +13,17 @@ local function Debug(...)
 end
 
 local L = LibStub("AceLocale-3.0"):GetLocale(ADDON_NAME)
+local LibClassicDurations = LibStub("LibClassicDurations", true)
+
+local isRetail = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
+local UnitAura = _G.UnitAura
+
+--wrap the UnitAura function if addon is running in classic
+--Aura does not provide duration or expiration in classic.
+if not isRetail and LibClassicDurations then
+    LibClassicDurations:Register("xanDebuffTimers")
+    UnitAura = LibClassicDurations.UnitAuraWrapper
+end
 
 addon.timers = {}
 addon.timersFocus = {}
@@ -37,11 +48,6 @@ local UnitIsUnit = UnitIsUnit
 local UnitGUID = UnitGUID
 local UnitName = UnitName
 
-local pointT = {
-	["target"] = "XDT_Anchor",
-	["focus"] = "XDT_FocusAnchor",
-}
-
 local timerList = {
 	["target"] = addon.timers,
 	["focus"] = addon.timersFocus,
@@ -62,7 +68,9 @@ function addon:PLAYER_LOGIN()
 
 	--create our anchors
 	addon:CreateAnchor("XDT_Anchor", UIParent, L.BarTargetAnchor)
-	addon:CreateAnchor("XDT_FocusAnchor", UIParent, L.BarFocusAnchor)
+	if isRetail then
+		addon:CreateAnchor("XDT_FocusAnchor", UIParent, L.BarFocusAnchor)
+	end
 
 	--create our bars
 	addon:generateBars()
@@ -72,7 +80,9 @@ function addon:PLAYER_LOGIN()
 	
 	addon:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 	addon:RegisterEvent("PLAYER_TARGET_CHANGED")
-	addon:RegisterEvent("PLAYER_FOCUS_CHANGED")
+	if isRetail then
+		addon:RegisterEvent("PLAYER_FOCUS_CHANGED")
+	end
 
 	SLASH_XANDEBUFFTIMERS1 = "/xdt"
 	SlashCmdList["XANDEBUFFTIMERS"] = function(cmd)
@@ -132,6 +142,7 @@ function addon:PLAYER_TARGET_CHANGED()
 end
 
 function addon:PLAYER_FOCUS_CHANGED()
+	if not isRetail then return end
 	if UnitName("focus") and UnitGUID("focus") then
 		focusGUID = UnitGUID("focus")
 		addon:ProcessDebuffs("focus")
@@ -183,7 +194,7 @@ function addon:COMBAT_LOG_EVENT_UNFILTERED()
 			addon:ClearDebuffs("target")
 			targetGUID = 0
 		end
-		if dstGUID == focusGUID then
+		if isRetail and dstGUID == focusGUID then
 			addon:ClearDebuffs("focus")
 			focusGUID = 0
 		end
@@ -193,7 +204,7 @@ function addon:COMBAT_LOG_EVENT_UNFILTERED()
 		if dstGUID == targetGUID then
 			addon:ProcessDebuffs("target")
 		end
-		if dstGUID == focusGUID then
+		if isRetail and dstGUID == focusGUID then
 			addon:ProcessDebuffs("focus")
 		end
     end
@@ -320,9 +331,11 @@ function addon:generateBars()
 	--lets create the max bars to use on screen for future sorting
 	for i=1, addon.MAX_TIMERS do
 		addon.timers[i] = addon:CreateDebuffTimers()
-		addon.timersFocus[i] = addon:CreateDebuffTimers()
 		if not addon.timers.debuffs[i] then addon.timers.debuffs[i] = {} end
-		if not addon.timersFocus.debuffs[i] then addon.timersFocus.debuffs[i] = {} end
+		if isRetail then
+			addon.timersFocus[i] = addon:CreateDebuffTimers()
+			if not addon.timersFocus.debuffs[i] then addon.timersFocus.debuffs[i] = {} end
+		end
 	end
 		
 	--rearrange order
@@ -330,13 +343,17 @@ function addon:generateBars()
 		if XDT_DB.grow then
 			addon.timers[i]:ClearAllPoints()
 			addon.timers[i]:SetPoint("TOPLEFT", XDT_Anchor, "BOTTOMRIGHT", 0, adj)
-			addon.timersFocus[i]:ClearAllPoints()
-			addon.timersFocus[i]:SetPoint("TOPLEFT", XDT_FocusAnchor, "BOTTOMRIGHT", 0, adj)			
+			if isRetail then
+				addon.timersFocus[i]:ClearAllPoints()
+				addon.timersFocus[i]:SetPoint("TOPLEFT", XDT_FocusAnchor, "BOTTOMRIGHT", 0, adj)
+			end
 		else
 			addon.timers[i]:ClearAllPoints()
 			addon.timers[i]:SetPoint("BOTTOMLEFT", XDT_Anchor, "TOPRIGHT", 0, (adj * -1))
-			addon.timersFocus[i]:ClearAllPoints()
-			addon.timersFocus[i]:SetPoint("BOTTOMLEFT", XDT_FocusAnchor, "TOPRIGHT", 0, (adj * -1))			
+			if isRetail then
+				addon.timersFocus[i]:ClearAllPoints()
+				addon.timersFocus[i]:SetPoint("BOTTOMLEFT", XDT_FocusAnchor, "TOPRIGHT", 0, (adj * -1))
+			end
 		end
 		adj = adj - BAR_ADJUST
     end
@@ -352,13 +369,17 @@ function addon:adjustBars()
 		if XDT_DB.grow then
 			addon.timers[i]:ClearAllPoints()
 			addon.timers[i]:SetPoint("TOPLEFT", XDT_Anchor, "BOTTOMRIGHT", 0, adj)
-			addon.timersFocus[i]:ClearAllPoints()
-			addon.timersFocus[i]:SetPoint("TOPLEFT", XDT_FocusAnchor, "BOTTOMRIGHT", 0, adj)			
+			if isRetail then
+				addon.timersFocus[i]:ClearAllPoints()
+				addon.timersFocus[i]:SetPoint("TOPLEFT", XDT_FocusAnchor, "BOTTOMRIGHT", 0, adj)
+			end
 		else
 			addon.timers[i]:ClearAllPoints()
 			addon.timers[i]:SetPoint("BOTTOMLEFT", XDT_Anchor, "TOPRIGHT", 0, (adj * -1))
-			addon.timersFocus[i]:ClearAllPoints()
-			addon.timersFocus[i]:SetPoint("BOTTOMLEFT", XDT_FocusAnchor, "TOPRIGHT", 0, (adj * -1))			
+			if isRetail then
+				addon.timersFocus[i]:ClearAllPoints()
+				addon.timersFocus[i]:SetPoint("BOTTOMLEFT", XDT_FocusAnchor, "TOPRIGHT", 0, (adj * -1))
+			end
 		end
 		adj = adj - BAR_ADJUST
     end
@@ -410,7 +431,7 @@ addon:SetScript("OnUpdate", function(self, elapsed)
 			self:ProcessDebuffBar(addon.timers.debuffs[i])
 			tCount = tCount + 1
 		end
-		if addon.timersFocus.debuffs[i].active then
+		if isRetail and addon.timersFocus.debuffs[i].active then
 			self:ProcessDebuffBar(addon.timersFocus.debuffs[i])
 			fCount = fCount + 1
 		end
@@ -420,7 +441,7 @@ addon:SetScript("OnUpdate", function(self, elapsed)
 	if tCount > 0 then
 		addon:ShowDebuffs("target")
 	end
-	if fCount > 0 then
+	if isRetail and fCount > 0 then
 		addon:ShowDebuffs("focus")
 	end
 
@@ -482,10 +503,11 @@ end
 
 function addon:ReloadDebuffs()
 	addon:ClearDebuffs("target")
-	addon:ClearDebuffs("focus")
-
 	addon:ProcessDebuffs("target")
-	addon:ProcessDebuffs("focus")
+	if isRetail then
+		addon:ClearDebuffs("focus")
+		addon:ProcessDebuffs("focus")
+	end
 end
 
 function addon:ShowDebuffs(id)
@@ -499,7 +521,7 @@ function addon:ShowDebuffs(id)
 
 	if id == "target" then
 		sdTimer = addon.timers
-	elseif id == "focus" then
+	elseif id == "focus" and isRetail then
 		sdTimer = addon.timersFocus
 	else
 		locked = false
