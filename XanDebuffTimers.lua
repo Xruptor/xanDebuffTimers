@@ -65,7 +65,8 @@ function addon:PLAYER_LOGIN()
 	if XDT_DB.scale == nil then XDT_DB.scale = 1 end
 	if XDT_DB.grow == nil then XDT_DB.grow = false end
 	if XDT_DB.sort == nil then XDT_DB.sort = false end
-
+	if XDT_DB.showInfinite == nil then XDT_DB.showInfinite = true end
+	
 	--create our anchors
 	addon:CreateAnchor("XDT_Anchor", UIParent, L.BarTargetAnchor)
 	if isRetail then
@@ -115,6 +116,9 @@ function addon:PLAYER_LOGIN()
 			elseif c and c:lower() == L.SlashReload then
 				 addon.aboutPanel.btnReloadDebuffs.func()
 				return true
+			elseif c and c:lower() == L.SlashInfinite then
+				addon.aboutPanel.btnInfinite.func(true)
+				return true
 			end
 		end
 
@@ -125,6 +129,7 @@ function addon:PLAYER_LOGIN()
 		DEFAULT_CHAT_FRAME:AddMessage("/xdt "..L.SlashGrow.." - "..L.SlashGrowInfo)
 		DEFAULT_CHAT_FRAME:AddMessage("/xdt "..L.SlashSort.." - "..L.SlashSortInfo)
 		DEFAULT_CHAT_FRAME:AddMessage("/xdt "..L.SlashReload .." - "..L.SlashReloadInfo)
+		DEFAULT_CHAT_FRAME:AddMessage("/xdt "..L.SlashInfinite.." - "..L.SlashInfiniteInfo)
 	end
 	
 	local ver = GetAddOnMetadata(ADDON_NAME,"Version") or '1.0'
@@ -386,6 +391,8 @@ function addon:adjustBars()
 end
 
 function addon:ProcessDebuffBar(data)
+	if data.isInfinite then return end --dont do any calculations on infinite
+	
 	local beforeEnd = data.endTime - GetTime()
 	-- local percentTotal = (beforeEnd / data.durationTime)
 	-- local percentFinal = ceil(percentTotal * 100)
@@ -454,16 +461,46 @@ function addon:ProcessDebuffs(id)
 	local sdTimer = timerList[id] --makes things easier to read
 	
 	for i=1, addon.MAX_TIMERS do
-	
 		local name, icon, count, debuffType, duration, expTime, unitCaster, canStealOrPurge, nameplateShowPersonal, spellId = UnitAura(id, i, 'PLAYER|HARMFUL')
+		
+		local passChk = false
+		local isInfinite = false
+		
+		--only allow infinite debuffs if the user enabled it
+		if XDT_DB.showInfinite then
+			--auras are on so basically were allowing everything
+			passChk = true
+			if not duration or duration <= 0 or not expTime or expTime <= 0 then
+				isInfinite = true
+			end
+		end
+		if not XDT_DB.showInfinite and duration and duration > 0 then 
+			--auras are not on but the duration is greater then zero, so allow
+			passChk = true
+		end
+		
 		--check for duration > 0 for the evil DIVIDE BY ZERO
-		if name and duration and duration > 0 then
-			local beforeEnd = expTime - GetTime()
-			local startTime = (expTime - duration)
-			local totalDuration = (expTime - startTime) --total duration of the spell
-			local totalBarSegment = (string.len(BAR_TEXT) / totalDuration) --lets get how much each segment of the bar string would value up to 100%
-			local totalBarLength = totalBarSegment * beforeEnd --now get the individual bar segment value and multiply it with current duration
-			local barPercent = (totalBarLength / string.len(BAR_TEXT)) * 100
+		if name and passChk then
+			local beforeEnd = 0
+			local startTime = 0
+			local totalDuration = 0
+			local totalBarSegment = 0
+			local totalBarLength = 0
+			local barPercent = 0
+		
+			if isInfinite then
+				barPercent = 200 --anything higher than 100 will get pushed to top of list, so lets make it 200 -> addon:ShowBuffs(id)
+				duration = 0
+				expTime = 0
+				totalBarLength = string.len(BAR_TEXT) --just make it full bar length, it will never decrease anyways
+			else
+				beforeEnd = expTime - GetTime()
+				startTime = (expTime - duration)
+				totalDuration = (expTime - startTime) --total duration of the spell
+				totalBarSegment = (string.len(BAR_TEXT) / totalDuration) --lets get how much each segment of the bar string would value up to 100%
+				totalBarLength = totalBarSegment * beforeEnd --now get the individual bar segment value and multiply it with current duration
+				barPercent = (totalBarLength / string.len(BAR_TEXT)) * 100
+			end
 		
 			if barPercent > 0 or beforeEnd > 0 or totalBarLength > 0 then
 				--debuffs
@@ -479,12 +516,13 @@ function addon:ProcessDebuffs(id)
 				sdTimer.debuffs[i].stacks = count or 0
 				sdTimer.debuffs[i].percent = barPercent
 				sdTimer.debuffs[i].active = true
+				sdTimer.debuffs[i].isInfinite = isInfinite
 			end
 		else
 			sdTimer.debuffs[i].active = false
 		end
 	end
-
+	
 	addon:ShowDebuffs(id)
 end
 
@@ -562,14 +600,20 @@ function addon:ShowDebuffs(id)
 			--display the information
 			---------------------------------------
 			sdTimer[i].Bar:SetText( string.sub(BAR_TEXT, 1, tmpList[i].totalBarLength) )
-			sdTimer[i].Bar:SetTextColor(addon:getBarColor(tmpList[i].durationTime, tmpList[i].beforeEnd))
 			sdTimer[i].icon:SetTexture(tmpList[i].iconTex)
+			
 			if tmpList[i].stacks > 0 then
 				sdTimer[i].stacktext:SetText(tmpList[i].stacks)
 			else
 				sdTimer[i].stacktext:SetText(nil)
 			end
-			sdTimer[i].timetext:SetText(addon:GetTimeText(ceil(tmpList[i].beforeEnd)))
+			if tmpList[i].isInfinite then
+				sdTimer[i].timetext:SetText("∞")
+				sdTimer[i].Bar:SetTextColor(128/255,128/255,128/255)
+			else
+				sdTimer[i].timetext:SetText(addon:GetTimeText(ceil(tmpList[i].beforeEnd)))
+				sdTimer[i].Bar:SetTextColor(addon:getBarColor(tmpList[i].durationTime, tmpList[i].beforeEnd))
+			end
 			---------------------------------------
 			
 			sdTimer[i]:Show()

@@ -222,6 +222,28 @@ function configEvent:PLAYER_LOGIN()
 	addConfigEntry(sliderScale, 0, -40)
 	addon.aboutPanel.sliderScale = sliderScale
 	
+	--infinite
+	local btnInfinite = createCheckbutton(addon.aboutPanel, L.SlashInfiniteChkBtn)
+	btnInfinite:SetScript("OnShow", function() btnInfinite:SetChecked(XDT_DB.showInfinite) end)
+	btnInfinite.func = function(slashSwitch)
+		local value = XDT_DB.showInfinite
+		if not slashSwitch then value = btnInfinite:GetChecked() end
+
+		if value then
+			XDT_DB.showInfinite = false
+			DEFAULT_CHAT_FRAME:AddMessage(L.SlashInfiniteOff)
+		else
+			XDT_DB.showInfinite = true
+			DEFAULT_CHAT_FRAME:AddMessage(L.SlashInfiniteOn)
+		end
+		
+		addon:ReloadDebuffs()
+	end
+	btnInfinite:SetScript("OnClick", btnInfinite.func)
+	
+	addConfigEntry(btnInfinite, 0, -40)
+	addon.aboutPanel.btnInfinite = btnInfinite
+	
 	--grow
 	local btnGrow = createCheckbutton(addon.aboutPanel, L.SlashGrowChkBtn)
 	btnGrow:SetScript("OnShow", function() btnGrow:SetChecked(XDT_DB.grow) end)
@@ -241,7 +263,7 @@ function configEvent:PLAYER_LOGIN()
 	end
 	btnGrow:SetScript("OnClick", btnGrow.func)
 	
-	addConfigEntry(btnGrow, 0, -40)
+	addConfigEntry(btnGrow, 0, -20)
 	addon.aboutPanel.btnGrow = btnGrow
 	
 	--sort

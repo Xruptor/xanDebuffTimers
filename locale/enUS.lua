@@ -37,6 +37,12 @@ L.SlashReloadText = "Reload Debuff Bars"
 L.SlashReloadInfo = "Reload debuff bars."
 L.SlashReloadAlert = "xanDebuffTimers: Debuff bars reloaded!"
 
+L.SlashInfinite = "infinite"
+L.SlashInfiniteOn = "xanDebuffTimers: Show debuffs whom have no durations/timers or are infinite. [|cFF99CC33ON|r]"
+L.SlashInfiniteOff = "xanDebuffTimers: Show debuffs whom have no durations/timers or are infinite. [|cFF99CC33OFF|r]"
+L.SlashInfiniteInfo = "Toggle debuffs whom have no durations/timers or are infinite. (|cFF99CC33ON/OFF|r)."
+L.SlashInfiniteChkBtn = "Show debuffs whom have no durations/timers or are infinite. [|cFF99CC33ON|r]."
+
 L.TimeHour = "h"
 L.TimeMinute = "m"
 L.TimeSecond = "s"
