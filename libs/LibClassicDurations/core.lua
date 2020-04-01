@@ -19,7 +19,7 @@ Usage example 1:
 --]================]
 if WOW_PROJECT_ID ~= WOW_PROJECT_CLASSIC then return end
 
-local MAJOR, MINOR = "LibClassicDurations", 50
+local MAJOR, MINOR = "LibClassicDurations", 51
 local lib = LibStub:NewLibrary(MAJOR, MINOR)
 if not lib then return end
 
@@ -873,7 +873,8 @@ function lib:GetDurationForRank(spellName, spellID, srcGUID)
     end
 end
 
-local activeFrames = {}
+lib.activeFrames = lib.activeFrames or {}
+local activeFrames = lib.activeFrames
 function lib:RegisterFrame(frame)
     activeFrames[frame] = true
     if next(activeFrames) then
