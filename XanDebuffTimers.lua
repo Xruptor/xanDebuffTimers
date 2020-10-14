@@ -1,7 +1,7 @@
 
 local ADDON_NAME, addon = ...
 if not _G[ADDON_NAME] then
-	_G[ADDON_NAME] = CreateFrame("Frame", ADDON_NAME, UIParent)
+	_G[ADDON_NAME] = CreateFrame("Frame", ADDON_NAME, UIParent, BackdropTemplateMixin and "BackdropTemplate")
 end
 addon = _G[ADDON_NAME]
 
@@ -222,7 +222,7 @@ end
 function addon:CreateAnchor(name, parent, desc)
 
 	--create the anchor
-	local frameAnchor = CreateFrame("Frame", name, parent)
+	local frameAnchor = CreateFrame("Frame", name, parent, BackdropTemplateMixin and "BackdropTemplate")
 	
 	frameAnchor:SetWidth(25)
 	frameAnchor:SetHeight(25)
@@ -292,7 +292,7 @@ end
 
 function addon:CreateDebuffTimers()
 	
-    local Frm = CreateFrame("Frame", nil, UIParent)
+    local Frm = CreateFrame("Frame", nil, UIParent, BackdropTemplateMixin and "BackdropTemplate")
 
     Frm:SetWidth(ICON_SIZE)
     Frm:SetHeight(ICON_SIZE)
