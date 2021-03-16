@@ -7,7 +7,7 @@
 ## Title: xanDebuffTimers
 ## Notes: A small text based progress bar system for target debuffs.
 ## Author: Xruptor
-## Version: 5.2
+## Version: 5.3
 ## X-Curse-Project-ID: 22071
 ## X-WoWI-ID: 15683
 ## OptionalDeps: tekDebug

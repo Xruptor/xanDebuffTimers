@@ -4,9 +4,8 @@ if not _G[ADDON_NAME] then
 end
 addon = _G[ADDON_NAME]
 
-addon.configEvent = CreateFrame("frame", ADDON_NAME.."_config_eventFrame", UIParent, BackdropTemplateMixin and "BackdropTemplate")
-local configEvent = addon.configEvent
-configEvent:SetScript("OnEvent", function(self, event, ...) if self[event] then return self[event](self, event, ...) end end)
+addon.configFrame = CreateFrame("frame", ADDON_NAME.."_config_eventFrame", UIParent, BackdropTemplateMixin and "BackdropTemplate")
+local configFrame = addon.configFrame
 
 local L = LibStub("AceLocale-3.0"):GetLocale(ADDON_NAME)
 local isRetail = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
@@ -140,7 +139,7 @@ local function LoadAboutFrame()
 	return about
 end
 
-function configEvent:PLAYER_LOGIN()
+function configFrame:EnableConfig()
 	
 	addon.aboutPanel = LoadAboutFrame()
 	
@@ -298,8 +297,4 @@ function configEvent:PLAYER_LOGIN()
 	
 	addConfigEntry(btnReloadDebuffs, 0, -30)
 	addon.aboutPanel.btnReloadDebuffs = btnReloadDebuffs
-	
-	configEvent:UnregisterEvent("PLAYER_LOGIN")
 end
-
-if IsLoggedIn() then configEvent:PLAYER_LOGIN() else configEvent:RegisterEvent("PLAYER_LOGIN") end

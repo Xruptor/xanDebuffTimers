@@ -5,12 +5,32 @@ if not _G[ADDON_NAME] then
 end
 addon = _G[ADDON_NAME]
 
-addon:SetScript("OnEvent", function(self, event, ...) if self[event] then return self[event](self, event, ...) end end)
-
 local debugf = tekDebug and tekDebug:GetFrame(ADDON_NAME)
 local function Debug(...)
     if debugf then debugf:AddMessage(string.join(", ", tostringall(...))) end
 end
+
+addon:RegisterEvent("ADDON_LOADED")
+addon:SetScript("OnEvent", function(self, event, ...)
+	if event == "ADDON_LOADED" or event == "PLAYER_LOGIN" then
+		if event == "ADDON_LOADED" then
+			local arg1 = ...
+			if arg1 and arg1 == ADDON_NAME then
+				self:UnregisterEvent("ADDON_LOADED")
+				self:RegisterEvent("PLAYER_LOGIN")
+			end
+			return
+		end
+		if IsLoggedIn() then
+			self:EnableAddon(event, ...)
+			self:UnregisterEvent("PLAYER_LOGIN")
+		end
+		return
+	end
+	if self[event] then
+		return self[event](self, event, ...)
+	end
+end)
 
 local L = LibStub("AceLocale-3.0"):GetLocale(ADDON_NAME)
 local LibClassicDurations = LibStub("LibClassicDurations", true)
@@ -59,7 +79,7 @@ local barsLoaded = false
 --      Enable      --
 ----------------------
 	
-function addon:PLAYER_LOGIN()
+function addon:EnableAddon()
 
 	if not XDT_DB then XDT_DB = {} end
 	if XDT_DB.scale == nil then XDT_DB.scale = 1 end
@@ -75,9 +95,6 @@ function addon:PLAYER_LOGIN()
 
 	--create our bars
 	addon:generateBars()
-	
-	addon:UnregisterEvent("PLAYER_LOGIN")
-	addon.PLAYER_LOGIN = nil
 	
 	addon:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 	addon:RegisterEvent("PLAYER_TARGET_CHANGED")
@@ -131,6 +148,8 @@ function addon:PLAYER_LOGIN()
 		DEFAULT_CHAT_FRAME:AddMessage("/xdt "..L.SlashReload .." - "..L.SlashReloadInfo)
 		DEFAULT_CHAT_FRAME:AddMessage("/xdt "..L.SlashInfinite.." - "..L.SlashInfiniteInfo)
 	end
+	
+	if addon.configFrame then addon.configFrame:EnableConfig() end
 	
 	local ver = GetAddOnMetadata(ADDON_NAME,"Version") or '1.0'
 	DEFAULT_CHAT_FRAME:AddMessage(string.format("|cFF99CC33%s|r [v|cFF20ff20%s|r] loaded:   /xdt", ADDON_NAME, ver or "1.0"))
@@ -711,5 +730,3 @@ function addon:GetTimeText(timeLeft)
 		return nil
 	end
 end
-
-if IsLoggedIn() then addon:PLAYER_LOGIN() else addon:RegisterEvent("PLAYER_LOGIN") end
