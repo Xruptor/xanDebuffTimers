@@ -226,7 +226,7 @@ function configFrame:EnableConfig()
 	btnInfinite:SetScript("OnShow", function() btnInfinite:SetChecked(XDT_DB.showInfinite) end)
 	btnInfinite.func = function(slashSwitch)
 		local value = XDT_DB.showInfinite
-		if not slashSwitch then value = btnInfinite:GetChecked() end
+		if not slashSwitch then value = XDT_DB.showInfinite end
 
 		if value then
 			XDT_DB.showInfinite = false
@@ -248,7 +248,7 @@ function configFrame:EnableConfig()
 	btnGrow:SetScript("OnShow", function() btnGrow:SetChecked(XDT_DB.grow) end)
 	btnGrow.func = function(slashSwitch)
 		local value = XDT_DB.grow
-		if not slashSwitch then value = btnGrow:GetChecked() end
+		if not slashSwitch then value = XDT_DB.grow end
 
 		if value then
 			XDT_DB.grow = false
@@ -270,7 +270,7 @@ function configFrame:EnableConfig()
 	btnSort:SetScript("OnShow", function() btnSort:SetChecked(XDT_DB.sort) end)
 	btnSort.func = function(slashSwitch)
 		local value = XDT_DB.sort
-		if not slashSwitch then value = btnSort:GetChecked() end
+		if not slashSwitch then value = XDT_DB.sort end
 
 		if value then
 			XDT_DB.sort = false
