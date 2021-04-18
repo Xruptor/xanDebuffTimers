@@ -40,8 +40,8 @@ local UnitAura = _G.UnitAura
 
 --wrap the UnitAura function if addon is running in classic
 --Aura does not provide duration or expiration in classic.
-if not isRetail and LibClassicDurations then
-    LibClassicDurations:Register("xanDebuffTimers")
+if LibClassicDurations then
+    LibClassicDurations:Register(ADDON_NAME)
     UnitAura = LibClassicDurations.UnitAuraWrapper
 end
 
