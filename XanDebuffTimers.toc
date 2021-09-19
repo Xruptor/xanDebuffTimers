@@ -1,11 +1,11 @@
-## Interface: 90005
-## Interface-Retail: 90005
+## Interface: 90100
+## Interface-Retail: 90100
 ## Interface-Classic: 11307
-## Interface-BCC: 20501
+## Interface-BCC: 20502
 ## Title: xanDebuffTimers
 ## Notes: A small text based progress bar system for target debuffs.
 ## Author: Xruptor
-## Version: 5.7
+## Version: 5.8
 ## X-Curse-Project-ID: 22071
 ## X-WoWI-ID: 15683
 ## OptionalDeps: tekDebug
