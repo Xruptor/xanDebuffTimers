@@ -1,11 +1,11 @@
-## Interface: 100000
-## Interface-Retail: 100000
+## Interface: 100002
+## Interface-Retail: 100002
 ## Interface-Classic: 11403
 ## Interface-Wrath: 30400
 ## Title: xanDebuffTimers
 ## Notes: A small text based progress bar system for target debuffs.
 ## Author: Xruptor
-## Version: 6.0
+## Version: 6.1
 ## X-Curse-Project-ID: 22071
 ## X-WoWI-ID: 15683
 ## X-Wago-ID: RqGZ0a6d
