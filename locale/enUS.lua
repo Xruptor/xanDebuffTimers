@@ -16,8 +16,8 @@ L.SlashResetAlert = "xanDebuffTimers: Anchor positions have been reset!"
 
 L.SlashScale = "scale"
 L.SlashScaleSet = "xanDebuffTimers: scale has been set to [|cFF20ff20%s|r]"
-L.SlashScaleSetInvalid = "xanDebuffTimers: scale invalid or number cannot be greater than 2"
-L.SlashScaleInfo = "Set the scale of the xanDebuffTimers bar (0-200)."
+L.SlashScaleSetInvalid = "Scale invalid! Number must be from [0.5 - 5].  (0.5, 1, 3, 4.6, etc..)"
+L.SlashScaleInfo = "Set the scale of the LootRollMover loot frames (0.5 - 5)."
 L.SlashScaleText = "xanDebuffTimers Bar Scale"
 
 L.SlashGrow = "grow"
