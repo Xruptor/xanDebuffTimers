@@ -6,7 +6,7 @@
 ## Title: xanDebuffTimers
 ## Notes: A small text based progress bar system for target debuffs.
 ## Author: Xruptor
-## Version: 6.5
+## Version: 6.6
 ## IconTexture: 900319
 ## X-Curse-Project-ID: 22071
 ## X-WoWI-ID: 15683
