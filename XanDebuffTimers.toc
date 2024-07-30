@@ -4,6 +4,7 @@
 ## Interface-Cata: 40400
 ## Title: xanDebuffTimers
 ## Notes: A small text based progress bar system for target debuffs.
+## Notes-zhCN: 一个基于文本的小进度条系统，用于显示目标 debuff。
 ## Author: Xruptor
 ## Version: 6.7
 ## IconTexture: 900319
@@ -19,6 +20,7 @@ libs\AceLocale-3.0\AceLocale-3.0.xml
 libs\LibClassicDurations\LibClassicDurations.xml
 
 locale\enUS.lua
+locale\zhCN.lua
 
 xanDebuffTimers.lua
 config.lua
