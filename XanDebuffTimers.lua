@@ -33,17 +33,7 @@ addon:SetScript("OnEvent", function(self, event, ...)
 end)
 
 local L = LibStub("AceLocale-3.0"):GetLocale(ADDON_NAME)
-local LibClassicDurations = LibStub("LibClassicDurations", true)
-
 local isRetail = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
-local UnitAura = _G.UnitAura
-
---wrap the UnitAura function if addon is running in classic
---Aura does not provide duration or expiration in classic.
-if LibClassicDurations then
-    LibClassicDurations:Register(ADDON_NAME)
-    UnitAura = LibClassicDurations.UnitAuraWrapper
-end
 
 addon.timers = {}
 addon.timersFocus = {}
@@ -63,7 +53,7 @@ local locked = false
 
 local targetGUID = 0
 local focusGUID = 0
-local UnitAura = UnitAura
+local UnitAura = C_UnitAuras.GetAuraDataByIndex
 local UnitIsUnit = UnitIsUnit
 local UnitGUID = UnitGUID
 local UnitName = UnitName
@@ -503,65 +493,67 @@ function addon:ProcessDebuffs(id)
 	local sdTimer = timerList[id] --makes things easier to read
 
 	for i=1, addon.MAX_TIMERS do
-		local name, icon, count, debuffType, duration, expTime, unitCaster, canStealOrPurge, nameplateShowPersonal, spellId = UnitAura(id, i, 'PLAYER|HARMFUL')
 
-		local passChk = false
-		local isInfinite = false
+		local auraData = UnitAura(id, i, 'PLAYER|HARMFUL')
+		if auraData then
+			local passChk = false
+			local isInfinite = false
 
-		--only allow infinite debuffs if the user enabled it
-		if XDT_DB.showInfinite then
-			--auras are on so basically were allowing everything
-			passChk = true
-			if not duration or duration <= 0 or not expTime or expTime <= 0 then
-				isInfinite = true
+			--only allow infinite debuffs if the user enabled it
+			if XDT_DB.showInfinite then
+				--auras are on so basically were allowing everything
+				passChk = true
+				if not auraData.duration or auraData.duration <= 0 or not auraData.expirationTime or auraData.expirationTime <= 0 then
+					isInfinite = true
+				end
 			end
-		end
-		if not XDT_DB.showInfinite and duration and duration > 0 then
-			--auras are not on but the duration is greater then zero, so allow
-			passChk = true
-		end
+			if not XDT_DB.showInfinite and auraData.duration and auraData.duration > 0 then
+				--auras are not on but the duration is greater then zero, so allow
+				passChk = true
+			end
 
-		--check for duration > 0 for the evil DIVIDE BY ZERO
-		if name and passChk then
-			local beforeEnd = 0
-			local startTime = 0
-			local totalDuration = 0
-			local totalBarSegment = 0
-			local totalBarLength = 0
-			local barPercent = 0
+			--check for auraData.duration > 0 for the evil DIVIDE BY ZERO
+			if auraData.name and passChk then
+				local beforeEnd = 0
+				local startTime = 0
+				local totalDuration = 0
+				local totalBarSegment = 0
+				local totalBarLength = 0
+				local barPercent = 0
 
-			if isInfinite then
-				barPercent = 200 --anything higher than 100 will get pushed to top of list, so lets make it 200 -> addon:ShowBuffs(id)
-				duration = 0
-				expTime = 0
-				totalBarLength = string.len(BAR_TEXT) --just make it full bar length, it will never decrease anyways
+				if isInfinite then
+					barPercent = 200 --anything higher than 100 will get pushed to top of list, so lets make it 200 -> addon:ShowBuffs(id)
+					auraData.duration = 0
+					auraData.expirationTime = 0
+					totalBarLength = string.len(BAR_TEXT) --just make it full bar length, it will never decrease anyways
+				else
+					beforeEnd = auraData.expirationTime - GetTime()
+					startTime = (auraData.expirationTime - auraData.duration)
+					totalDuration = (auraData.expirationTime - startTime) --total duration of the spell
+					totalBarSegment = (string.len(BAR_TEXT) / totalDuration) --lets get how much each segment of the bar string would value up to 100%
+					totalBarLength = totalBarSegment * beforeEnd --now get the individual bar segment value and multiply it with current duration
+					barPercent = (totalBarLength / string.len(BAR_TEXT)) * 100
+				end
+
+				if barPercent > 0 or beforeEnd > 0 or totalBarLength > 0 then
+					--debuffs
+					sdTimer.debuffs[i].id = id
+					sdTimer.debuffs[i].spellName = auraData.name
+					sdTimer.debuffs[i].spellId = auraData.spellId
+					sdTimer.debuffs[i].iconTex = auraData.icon
+					sdTimer.debuffs[i].startTime = startTime
+					sdTimer.debuffs[i].durationTime = auraData.duration
+					sdTimer.debuffs[i].beforeEnd = beforeEnd
+					sdTimer.debuffs[i].endTime = auraData.expirationTime
+					sdTimer.debuffs[i].totalBarLength = totalBarLength
+					sdTimer.debuffs[i].stacks = auraData.charges or 0
+					sdTimer.debuffs[i].percent = barPercent
+					sdTimer.debuffs[i].active = true
+					sdTimer.debuffs[i].isInfinite = isInfinite
+				end
 			else
-				beforeEnd = expTime - GetTime()
-				startTime = (expTime - duration)
-				totalDuration = (expTime - startTime) --total duration of the spell
-				totalBarSegment = (string.len(BAR_TEXT) / totalDuration) --lets get how much each segment of the bar string would value up to 100%
-				totalBarLength = totalBarSegment * beforeEnd --now get the individual bar segment value and multiply it with current duration
-				barPercent = (totalBarLength / string.len(BAR_TEXT)) * 100
+				sdTimer.debuffs[i].active = false
 			end
-
-			if barPercent > 0 or beforeEnd > 0 or totalBarLength > 0 then
-				--debuffs
-				sdTimer.debuffs[i].id = id
-				sdTimer.debuffs[i].spellName = name
-				sdTimer.debuffs[i].spellId = spellId
-				sdTimer.debuffs[i].iconTex = icon
-				sdTimer.debuffs[i].startTime = startTime
-				sdTimer.debuffs[i].durationTime = duration
-				sdTimer.debuffs[i].beforeEnd = beforeEnd
-				sdTimer.debuffs[i].endTime = expTime
-				sdTimer.debuffs[i].totalBarLength = totalBarLength
-				sdTimer.debuffs[i].stacks = count or 0
-				sdTimer.debuffs[i].percent = barPercent
-				sdTimer.debuffs[i].active = true
-				sdTimer.debuffs[i].isInfinite = isInfinite
-			end
-		else
-			sdTimer.debuffs[i].active = false
 		end
 	end
 
