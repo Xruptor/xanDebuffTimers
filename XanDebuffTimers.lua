@@ -33,7 +33,7 @@ addon:SetScript("OnEvent", function(self, event, ...)
 end)
 
 local L = LibStub("AceLocale-3.0"):GetLocale(ADDON_NAME)
-local isRetail = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
+local canFocusT = (FocusUnit and FocusFrame) or false
 
 addon.timers = {}
 addon.timersFocus = {}
@@ -48,15 +48,9 @@ local ICON_SIZE = 20
 local BAR_ADJUST = 25
 --40 characters, each worth 2.5 out of 100, to get bar length.  (percent/2.5)  example: 75/2.5 = 30 bar length
 local BAR_TEXT = "llllllllllllllllllllllllllllllllllllllll"
-local band = bit.band
 local locked = false
 
-local targetGUID = 0
-local focusGUID = 0
 local UnitAura = C_UnitAuras.GetAuraDataByIndex
-local UnitIsUnit = UnitIsUnit
-local UnitGUID = UnitGUID
-local UnitName = UnitName
 
 local timerList = {
 	["target"] = addon.timers,
@@ -76,19 +70,26 @@ function addon:EnableAddon()
 	if XDT_DB.grow == nil then XDT_DB.grow = false end
 	if XDT_DB.sort == nil then XDT_DB.sort = false end
 	if XDT_DB.showInfinite == nil then XDT_DB.showInfinite = true end
+	if XDT_DB.showIcon == nil then XDT_DB.showIcon = true end
+	if XDT_DB.showSpellName == nil then XDT_DB.showSpellName = false end
+	if XDT_DB.hideInRestedAreas == nil then XDT_DB.hideInRestedAreas = false end
+	if XDT_DB.showTimerOnRight == nil then XDT_DB.showTimerOnRight = true end
 
 	--create our anchors
 	addon:CreateAnchor("XDT_Anchor", UIParent, L.BarTargetAnchor)
-	if isRetail then
+	if canFocusT then
 		addon:CreateAnchor("XDT_FocusAnchor", UIParent, L.BarFocusAnchor)
 	end
 
 	--create our bars
 	addon:generateBars()
 
-	addon:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+	addon:RegisterEvent("PLAYER_UPDATE_RESTING")
+	addon:RegisterEvent("PLAYER_ENTERING_WORLD")
+	addon:RegisterEvent("UNIT_AURA")
 	addon:RegisterEvent("PLAYER_TARGET_CHANGED")
-	if isRetail then
+
+	if canFocusT then
 		addon:RegisterEvent("PLAYER_FOCUS_CHANGED")
 	end
 
@@ -145,83 +146,32 @@ function addon:EnableAddon()
 	DEFAULT_CHAT_FRAME:AddMessage(string.format("|cFF99CC33%s|r [v|cFF20ff20%s|r] loaded:   /xdt", ADDON_NAME, ver or "1.0"))
 end
 
-function addon:PLAYER_TARGET_CHANGED()
-	if UnitName("target") and UnitGUID("target") then
-		targetGUID = UnitGUID("target")
-		addon:ProcessDebuffs("target")
-	else
-		addon:ClearDebuffs("target")
-		targetGUID = 0
+function addon:PLAYER_UPDATE_RESTING()
+	if XDT_DB.hideInRestedAreas and IsResting() then
+		addon:ReloadDebuffs()
 	end
+end
+function addon:PLAYER_ENTERING_WORLD()
+	if XDT_DB.hideInRestedAreas and IsResting() then
+		addon:ReloadDebuffs()
+	end
+end
+
+function addon:PLAYER_TARGET_CHANGED()
+	addon:ProcessDebuffs("target")
 end
 
 function addon:PLAYER_FOCUS_CHANGED()
-	if not isRetail then return end
-	if UnitName("focus") and UnitGUID("focus") then
-		focusGUID = UnitGUID("focus")
-		addon:ProcessDebuffs("focus")
-	else
-		addon:ClearDebuffs("focus")
-		focusGUID = 0
-	end
+	if not canFocusT then return end
+	addon:ProcessDebuffs("focus")
 end
 
-local eventSwitch = {
-	["SPELL_AURA_APPLIED"] = true,
-	["SPELL_AURA_REMOVED"] = true,
-	["SPELL_AURA_REFRESH"] = true,
-	["SPELL_AURA_APPLIED_DOSE"] = true,
-	["SPELL_AURA_APPLIED_REMOVED_DOSE"] = true,
-	["SPELL_AURA_REMOVED_DOSE"] = true,
-	["SPELL_AURA_BROKEN"] = true,
-	["SPELL_AURA_BROKEN_SPELL"] = true,
-	["ENCHANT_REMOVED"] = true,
-	["ENCHANT_APPLIED"] = true,
-	["SPELL_CAST_SUCCESS"] = true,
-	["SPELL_PERIODIC_ENERGIZE"] = true,
-	["SPELL_ENERGIZE"] = true,
-	["SPELL_PERIODIC_HEAL"] = true,
-	["SPELL_HEAL"] = true,
-	["SPELL_DAMAGE"] = true,
-	["SPELL_PERIODIC_DAMAGE"] = true,
-	--added new
-	["SPELL_DRAIN"] = true,
-	["SPELL_LEECH"] = true,
-	["SPELL_PERIODIC_DRAIN"] = true,
-	["SPELL_PERIODIC_LEECH"] = true,
-	["DAMAGE_SHIELD"] = true,
-	["DAMAGE_SPLIT"] = true,
-}
-
-local CombatLogGetCurrentEventInfo = CombatLogGetCurrentEventInfo
-
-function addon:COMBAT_LOG_EVENT_UNFILTERED()
-
-	--local timestamp, eventType, hideCaster, sourceGUID, sourceName, srcFlags, sourceRaidFlags, dstGUID, destName, destFlags, destRaidFlags, spellID, spellName, spellSchool, auraType, amount
-	local timestamp, eventType, _, sourceGUID, _, srcFlags, _, dstGUID = CombatLogGetCurrentEventInfo()
-
-    if eventType == "UNIT_DIED" or eventType == "UNIT_DESTROYED" then
-		--clear the debuffs if the unit died
-		--NOTE the reason an elseif isn't used is because some dorks may have
-		--their current target as their focus as well
-		if dstGUID == targetGUID then
-			addon:ClearDebuffs("target")
-			targetGUID = 0
-		end
-		if isRetail and dstGUID == focusGUID then
-			addon:ClearDebuffs("focus")
-			focusGUID = 0
-		end
-
-	elseif eventSwitch[eventType] and band(srcFlags, COMBATLOG_OBJECT_AFFILIATION_MINE) ~= 0 then
-		--process the spells based on GUID
-		if dstGUID == targetGUID then
-			addon:ProcessDebuffs("target")
-		end
-		if isRetail and dstGUID == focusGUID then
-			addon:ProcessDebuffs("focus")
-		end
-    end
+function addon:UNIT_AURA(event, unit, info)
+	if canFocusT and unit == "focus" then
+		addon:ProcessDebuffs("focus")
+	elseif unit == "target" then
+		addon:ProcessDebuffs("target")
+	end
 end
 
 ----------------------
@@ -327,12 +277,18 @@ function addon:CreateDebuffTimers()
     Frm.timetext = Frm:CreateFontString(nil, "OVERLAY");
     Frm.timetext:SetFont(STANDARD_TEXT_FONT,10,"OUTLINE")
     Frm.timetext:SetJustifyH("RIGHT")
-    Frm.timetext:SetPoint("RIGHT", Frm.icon, "LEFT" , -5, 0)
+    Frm.timetext:SetPoint("LEFT", Frm.icon, "RIGHT", 5, 0)
+
+    Frm.spellNameText = Frm:CreateFontString(nil, "OVERLAY");
+    Frm.spellNameText:SetFont(STANDARD_TEXT_FONT,10,"OUTLINE")
+	Frm.spellNameText:SetTextColor(239/255,70/255,0)
+    Frm.spellNameText:SetJustifyH("RIGHT")
+    Frm.spellNameText:SetPoint("RIGHT", Frm.icon, "LEFT" , -5, 0)
 
 	Frm.Bar = Frm:CreateFontString(nil, "OVERLAY")
 	Frm.Bar:SetFont(STANDARD_TEXT_FONT, 14, "OUTLINE, MONOCHROME")
 	Frm.Bar:SetText(BAR_TEXT)
-	Frm.Bar:SetPoint("LEFT", Frm.icon, "RIGHT", 1, 0)
+	Frm.Bar:SetPoint("LEFT", Frm.icon, "RIGHT", 33, 0)
 
 	Frm:Hide()
 
@@ -355,11 +311,36 @@ function addon:SetAddonScale(value, bypass)
 		if addon.timers[i] then
 			addon.timers[i]:SetScale(XDT_DB.scale)
 		end
-		if isRetail and addon.timersFocus[i] then
+		if canFocusT and addon.timersFocus[i] then
 			addon.timersFocus[i]:SetScale(XDT_DB.scale)
 		end
 	end
 
+end
+
+function addon:adjustTextAlignment(sdTimer)
+	if not sdTimer then return end
+
+	--if we have the icon visible, we need to determine if we show the timer text on the left or right
+	sdTimer.timetext:ClearAllPoints()
+	sdTimer.Bar:ClearAllPoints()
+	sdTimer.spellNameText:ClearAllPoints()
+
+	if XDT_DB.showIcon then
+		if XDT_DB.showTimerOnRight then
+			sdTimer.timetext:SetPoint("LEFT", sdTimer.icon, "RIGHT", 5, 0)
+			sdTimer.Bar:SetPoint("LEFT", sdTimer.icon, "RIGHT", 33, 0)
+			sdTimer.spellNameText:SetPoint("RIGHT", sdTimer.icon, "LEFT" , -5, 0)
+		else
+			sdTimer.timetext:SetPoint("RIGHT", sdTimer.icon, "LEFT" , -5, 0)
+			sdTimer.Bar:SetPoint("LEFT", sdTimer.icon, "RIGHT", 5, 0)
+			sdTimer.spellNameText:SetPoint("RIGHT", sdTimer.timetext, "LEFT" , -5, 0)
+		end
+	else
+		sdTimer.timetext:SetPoint("LEFT", sdTimer.icon, "RIGHT", 5, 0)
+		sdTimer.Bar:SetPoint("LEFT", sdTimer.icon, "RIGHT", 33, 0)
+		sdTimer.spellNameText:SetPoint("RIGHT", sdTimer.timetext, "LEFT" , -5, 0)
+	end
 end
 
 function addon:generateBars()
@@ -369,33 +350,14 @@ function addon:generateBars()
 	for i=1, addon.MAX_TIMERS do
 		addon.timers[i] = addon:CreateDebuffTimers()
 		if not addon.timers.debuffs[i] then addon.timers.debuffs[i] = {} end
-		if isRetail then
+		if canFocusT then
 			addon.timersFocus[i] = addon:CreateDebuffTimers()
 			if not addon.timersFocus.debuffs[i] then addon.timersFocus.debuffs[i] = {} end
 		end
 	end
-
-	--rearrange order
-	for i=1, addon.MAX_TIMERS do
-		if XDT_DB.grow then
-			addon.timers[i]:ClearAllPoints()
-			addon.timers[i]:SetPoint("TOPLEFT", XDT_Anchor, "BOTTOMRIGHT", 0, adj)
-			if isRetail then
-				addon.timersFocus[i]:ClearAllPoints()
-				addon.timersFocus[i]:SetPoint("TOPLEFT", XDT_FocusAnchor, "BOTTOMRIGHT", 0, adj)
-			end
-		else
-			addon.timers[i]:ClearAllPoints()
-			addon.timers[i]:SetPoint("BOTTOMLEFT", XDT_Anchor, "TOPRIGHT", 0, (adj * -1))
-			if isRetail then
-				addon.timersFocus[i]:ClearAllPoints()
-				addon.timersFocus[i]:SetPoint("BOTTOMLEFT", XDT_FocusAnchor, "TOPRIGHT", 0, (adj * -1))
-			end
-		end
-		adj = adj - BAR_ADJUST
-    end
-
 	barsLoaded = true
+
+	addon:adjustBars()
 end
 
 function addon:adjustBars()
@@ -403,17 +365,24 @@ function addon:adjustBars()
 
 	local adj = 0
 	for i=1, addon.MAX_TIMERS do
+
+		--fix the text alignment based on our settings
+		addon:adjustTextAlignment(addon.timers[i])
+		if canFocusT then
+			addon:adjustTextAlignment(addon.timersFocus[i])
+		end
+
 		if XDT_DB.grow then
 			addon.timers[i]:ClearAllPoints()
 			addon.timers[i]:SetPoint("TOPLEFT", XDT_Anchor, "BOTTOMRIGHT", 0, adj)
-			if isRetail then
+			if canFocusT then
 				addon.timersFocus[i]:ClearAllPoints()
 				addon.timersFocus[i]:SetPoint("TOPLEFT", XDT_FocusAnchor, "BOTTOMRIGHT", 0, adj)
 			end
 		else
 			addon.timers[i]:ClearAllPoints()
 			addon.timers[i]:SetPoint("BOTTOMLEFT", XDT_Anchor, "TOPRIGHT", 0, (adj * -1))
-			if isRetail then
+			if canFocusT then
 				addon.timersFocus[i]:ClearAllPoints()
 				addon.timersFocus[i]:SetPoint("BOTTOMLEFT", XDT_FocusAnchor, "TOPRIGHT", 0, (adj * -1))
 			end
@@ -470,7 +439,7 @@ addon:SetScript("OnUpdate", function(self, elapsed)
 			self:ProcessDebuffBar(addon.timers.debuffs[i])
 			tCount = tCount + 1
 		end
-		if isRetail and addon.timersFocus.debuffs[i].active then
+		if canFocusT and addon.timersFocus.debuffs[i].active then
 			self:ProcessDebuffBar(addon.timersFocus.debuffs[i])
 			fCount = fCount + 1
 		end
@@ -480,7 +449,7 @@ addon:SetScript("OnUpdate", function(self, elapsed)
 	if tCount > 0 then
 		addon:ShowDebuffs("target")
 	end
-	if isRetail and fCount > 0 then
+	if canFocusT and fCount > 0 then
 		addon:ShowDebuffs("focus")
 	end
 
@@ -489,15 +458,19 @@ end)
 
 function addon:ProcessDebuffs(id)
 	if not barsLoaded then return end
+	if XDT_DB.hideInRestedAreas and IsResting() then return end
 
 	local sdTimer = timerList[id] --makes things easier to read
 
 	for i=1, addon.MAX_TIMERS do
-
+		local passChk = false
+		local isInfinite = false
 		local auraData = UnitAura(id, i, 'PLAYER|HARMFUL')
+
+		--turn off by default, activate only if we have something
+		sdTimer.debuffs[i].active = false
+
 		if auraData then
-			local passChk = false
-			local isInfinite = false
 
 			--only allow infinite debuffs if the user enabled it
 			if XDT_DB.showInfinite then
@@ -546,13 +519,11 @@ function addon:ProcessDebuffs(id)
 					sdTimer.debuffs[i].beforeEnd = beforeEnd
 					sdTimer.debuffs[i].endTime = auraData.expirationTime
 					sdTimer.debuffs[i].totalBarLength = totalBarLength
-					sdTimer.debuffs[i].stacks = auraData.charges or 0
+					sdTimer.debuffs[i].stacks = auraData.applications or 0
 					sdTimer.debuffs[i].percent = barPercent
 					sdTimer.debuffs[i].active = true
 					sdTimer.debuffs[i].isInfinite = isInfinite
 				end
-			else
-				sdTimer.debuffs[i].active = false
 			end
 		end
 	end
@@ -575,9 +546,14 @@ end
 
 function addon:ReloadDebuffs()
 	addon:ClearDebuffs("target")
-	addon:ProcessDebuffs("target")
-	if isRetail then
+	if canFocusT then
 		addon:ClearDebuffs("focus")
+	end
+
+	if XDT_DB.hideInRestedAreas and IsResting() then return end
+
+	addon:ProcessDebuffs("target")
+	if canFocusT then
 		addon:ProcessDebuffs("focus")
 	end
 end
@@ -593,7 +569,7 @@ function addon:ShowDebuffs(id)
 
 	if id == "target" then
 		sdTimer = addon.timers
-	elseif id == "focus" and isRetail then
+	elseif id == "focus" and canFocusT then
 		sdTimer = addon.timersFocus
 	else
 		locked = false
@@ -634,12 +610,31 @@ function addon:ShowDebuffs(id)
 			--display the information
 			---------------------------------------
 			sdTimer[i].Bar:SetText( string.sub(BAR_TEXT, 1, tmpList[i].totalBarLength) )
-			sdTimer[i].icon:SetTexture(tmpList[i].iconTex)
 
-			if tmpList[i].stacks > 0 then
-				sdTimer[i].stacktext:SetText(tmpList[i].stacks)
+			if XDT_DB.showIcon then
+				sdTimer[i].icon:SetTexture(tmpList[i].iconTex)
+				if XDT_DB.showSpellName then
+					sdTimer[i].spellNameText:SetText(tmpList[i].spellName)
+				else
+					sdTimer[i].spellNameText:SetText("")
+				end
+				if tmpList[i].stacks > 0 then
+					sdTimer[i].stacktext:SetText(tmpList[i].stacks)
+				else
+					sdTimer[i].stacktext:SetText(nil)
+				end
 			else
+				sdTimer[i].icon:SetTexture(nil)
 				sdTimer[i].stacktext:SetText(nil)
+				if XDT_DB.showSpellName then
+					if tmpList[i].stacks > 0 then
+						sdTimer[i].spellNameText:SetText(tmpList[i].spellName.." ["..tmpList[i].stacks.."]")
+					else
+						sdTimer[i].spellNameText:SetText(tmpList[i].spellName)
+					end
+				else
+					sdTimer[i].spellNameText:SetText("")
+				end
 			end
 			if tmpList[i].isInfinite then
 				sdTimer[i].timetext:SetText("∞")
@@ -658,6 +653,7 @@ function addon:ShowDebuffs(id)
 
 	locked = false
 end
+
 
 ----------------------
 -- Local Functions  --

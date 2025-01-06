@@ -49,3 +49,8 @@ L.TimeSecond = "s"
 
 L.BarTargetAnchor = "xanDebuffTimers: Target Anchor"
 L.BarFocusAnchor = "xanDebuffTimers: Focus Anchor"
+
+L.IconChkBtn = "Show debuff icons. [|cFF99CC33ON|r]."
+L.SpellNameChkBtn = "Show debuff spell names. [|cFF99CC33ON|r]."
+L.HideInRested = "Hide Debuff Bars when in a Rested Area."
+L.ShowTimerOnRight = "Show the timer on the right of debuff icon."

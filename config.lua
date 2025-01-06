@@ -8,36 +8,36 @@ addon.configFrame = CreateFrame("frame", ADDON_NAME.."_config_eventFrame", UIPar
 local configFrame = addon.configFrame
 
 local L = LibStub("AceLocale-3.0"):GetLocale(ADDON_NAME)
-local isRetail = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
+local canFocusT = (FocusUnit and FocusFrame) or false
 local lastObject
 
 local function addConfigEntry(objEntry, adjustX, adjustY)
-	
+
 	objEntry:ClearAllPoints()
-	
+
 	if not lastObject then
-		objEntry:SetPoint("TOPLEFT", 20, -150)
+		objEntry:SetPoint("TOPLEFT", 20, -120)
 	else
 		objEntry:SetPoint("LEFT", lastObject, "BOTTOMLEFT", adjustX or 0, adjustY or -30)
 	end
-	
+
 	lastObject = objEntry
 end
 
 local chkBoxIndex = 0
 local function createCheckbutton(parentFrame, displayText)
 	chkBoxIndex = chkBoxIndex + 1
-	
+
 	local checkbutton = CreateFrame("CheckButton", ADDON_NAME.."_config_chkbtn_" .. chkBoxIndex, parentFrame, "ChatConfigCheckButtonTemplate")
 	getglobal(checkbutton:GetName() .. 'Text'):SetText(" "..displayText)
-	
+
 	return checkbutton
 end
 
 local buttonIndex = 0
 local function createButton(parentFrame, displayText)
 	buttonIndex = buttonIndex + 1
-	
+
 	local button = CreateFrame("Button", ADDON_NAME.."_config_button_" .. buttonIndex, parentFrame, "UIPanelButtonTemplate")
 	button:SetText(displayText)
 	button:SetHeight(30)
@@ -96,7 +96,7 @@ local function LoadAboutFrame()
 	local about = CreateFrame("Frame", ADDON_NAME.."AboutPanel", InterfaceOptionsFramePanelContainer, BackdropTemplateMixin and "BackdropTemplate")
 	about.name = ADDON_NAME
 	about:Hide()
-	
+
     local fields = {"Version", "Author"}
 	local notes = C_AddOns.GetAddOnMetadata(ADDON_NAME, "Notes")
 
@@ -134,7 +134,7 @@ local function LoadAboutFrame()
 			anchor = title
 		end
 	end
-	
+
 	if InterfaceOptions_AddCategory then
 		InterfaceOptions_AddCategory(about)
 	else
@@ -147,45 +147,45 @@ local function LoadAboutFrame()
 end
 
 function configFrame:EnableConfig()
-	
+
 	addon.aboutPanel = LoadAboutFrame()
-	
+
 	--anchor
 	local btnAnchor = createButton(addon.aboutPanel, L.SlashAnchorText)
 	btnAnchor.func = function()
 		if XDT_Anchor:IsVisible() then
 			XDT_Anchor:Hide()
-			if isRetail then
+			if canFocusT then
 				XDT_FocusAnchor:Hide()
 			end
 			DEFAULT_CHAT_FRAME:AddMessage(L.SlashAnchorOff)
 		else
 			XDT_Anchor:Show()
-			if isRetail then
+			if canFocusT then
 				XDT_FocusAnchor:Show()
 			end
 			DEFAULT_CHAT_FRAME:AddMessage(L.SlashAnchorOn)
 		end
 	end
 	btnAnchor:SetScript("OnClick", btnAnchor.func)
-	
+
 	addConfigEntry(btnAnchor, 0, -30)
 	addon.aboutPanel.btnAnchor = btnAnchor
-	
+
 	--reset
 	local btnReset = createButton(addon.aboutPanel, L.SlashResetText)
 	btnReset.func = function()
 		DEFAULT_CHAT_FRAME:AddMessage(L.SlashResetAlert)
 		XDT_Anchor:ClearAllPoints()
 		XDT_Anchor:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
-		if isRetail then
+		if canFocusT then
 			XDT_FocusAnchor:ClearAllPoints()
 			XDT_FocusAnchor:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
 		end
 	end
 	btnReset:SetScript("OnClick", btnReset.func)
-	
-	addConfigEntry(btnReset, 0, -30)
+
+	addConfigEntry(btnReset, 0, -25)
 	addon.aboutPanel.btnReset = btnReset
 
 	--scale
@@ -225,14 +225,14 @@ function configFrame:EnableConfig()
 			XDT_DB.showInfinite = true
 			DEFAULT_CHAT_FRAME:AddMessage(L.SlashInfiniteOn)
 		end
-		
+
 		addon:ReloadDebuffs()
 	end
 	btnInfinite:SetScript("OnClick", btnInfinite.func)
-	
+
 	addConfigEntry(btnInfinite, 0, -40)
 	addon.aboutPanel.btnInfinite = btnInfinite
-	
+
 	--grow
 	local btnGrow = createCheckbutton(addon.aboutPanel, L.SlashGrowChkBtn)
 	btnGrow:SetScript("OnShow", function() btnGrow:SetChecked(XDT_DB.grow) end)
@@ -247,14 +247,14 @@ function configFrame:EnableConfig()
 			XDT_DB.grow = true
 			DEFAULT_CHAT_FRAME:AddMessage(L.SlashGrowDown)
 		end
-		
+
 		addon:adjustBars()
 	end
 	btnGrow:SetScript("OnClick", btnGrow.func)
-	
+
 	addConfigEntry(btnGrow, 0, -20)
 	addon.aboutPanel.btnGrow = btnGrow
-	
+
 	--sort
 	local btnSort = createCheckbutton(addon.aboutPanel, L.SlashSortChkBtn)
 	btnSort:SetScript("OnShow", function() btnSort:SetChecked(XDT_DB.sort) end)
@@ -269,14 +269,98 @@ function configFrame:EnableConfig()
 			XDT_DB.sort = true
 			DEFAULT_CHAT_FRAME:AddMessage(L.SlashSortAscending)
 		end
-		
+
 		addon:adjustBars()
 	end
 	btnSort:SetScript("OnClick", btnSort.func)
-	
+
 	addConfigEntry(btnSort, 0, -20)
 	addon.aboutPanel.btnSort = btnSort
-	
+
+	--icon
+	local btnIcon = createCheckbutton(addon.aboutPanel, L.IconChkBtn)
+	btnIcon:SetScript("OnShow", function() btnIcon:SetChecked(XDT_DB.showIcon) end)
+	btnIcon.func = function(slashSwitch)
+		local value = XDT_DB.showIcon
+		if not slashSwitch then value = XDT_DB.showIcon end
+
+		if value then
+			XDT_DB.showIcon = false
+		else
+			XDT_DB.showIcon = true
+		end
+
+		addon:adjustBars()
+		addon:ReloadDebuffs()
+	end
+	btnIcon:SetScript("OnClick", btnIcon.func)
+
+	addConfigEntry(btnIcon, 0, -13)
+	addon.aboutPanel.btnIcon = btnIcon
+
+	--spellname
+	local btnSpellName = createCheckbutton(addon.aboutPanel, L.SpellNameChkBtn)
+	btnSpellName:SetScript("OnShow", function() btnSpellName:SetChecked(XDT_DB.showSpellName) end)
+	btnSpellName.func = function(slashSwitch)
+		local value = XDT_DB.showSpellName
+		if not slashSwitch then value = XDT_DB.showSpellName end
+
+		if value then
+			XDT_DB.showSpellName = false
+
+		else
+			XDT_DB.showSpellName = true
+		end
+
+		addon:adjustBars()
+		addon:ReloadDebuffs()
+	end
+	btnSpellName:SetScript("OnClick", btnSpellName.func)
+
+	addConfigEntry(btnSpellName, 0, -13)
+	addon.aboutPanel.btnSpellName = btnSpellName
+
+	--show on right
+	local btnShowOnRight = createCheckbutton(addon.aboutPanel, L.ShowTimerOnRight)
+	btnShowOnRight:SetScript("OnShow", function() btnShowOnRight:SetChecked(XDT_DB.showTimerOnRight) end)
+	btnShowOnRight.func = function(slashSwitch)
+		local value = XDT_DB.showTimerOnRight
+		if not slashSwitch then value = XDT_DB.showTimerOnRight end
+
+		if value then
+			XDT_DB.showTimerOnRight = false
+		else
+			XDT_DB.showTimerOnRight = true
+		end
+
+		addon:adjustBars()
+		addon:ReloadDebuffs()
+	end
+	btnShowOnRight:SetScript("OnClick", btnShowOnRight.func)
+
+	addConfigEntry(btnShowOnRight, 0, -13)
+	addon.aboutPanel.btnShowOnRight = btnShowOnRight
+
+	--hide in rested
+	local btnHideInRested = createCheckbutton(addon.aboutPanel, L.HideInRested)
+	btnHideInRested:SetScript("OnShow", function() btnHideInRested:SetChecked(XDT_DB.hideInRestedAreas) end)
+	btnHideInRested.func = function(slashSwitch)
+		local value = XDT_DB.hideInRestedAreas
+		if not slashSwitch then value = XDT_DB.hideInRestedAreas end
+
+		if value then
+			XDT_DB.hideInRestedAreas = false
+		else
+			XDT_DB.hideInRestedAreas = true
+		end
+
+		addon:ReloadDebuffs()
+	end
+	btnHideInRested:SetScript("OnClick", btnHideInRested.func)
+
+	addConfigEntry(btnHideInRested, 0, -13)
+	addon.aboutPanel.btnHideInRested = btnHideInRested
+
 	--reload debuffs
 	local btnReloadDebuffs = createButton(addon.aboutPanel, L.SlashReloadText)
 	btnReloadDebuffs.func = function()
@@ -284,7 +368,7 @@ function configFrame:EnableConfig()
 		DEFAULT_CHAT_FRAME:AddMessage(L.SlashReloadAlert)
 	end
 	btnReloadDebuffs:SetScript("OnClick", btnReloadDebuffs.func)
-	
+
 	addConfigEntry(btnReloadDebuffs, 0, -30)
 	addon.aboutPanel.btnReloadDebuffs = btnReloadDebuffs
 end
