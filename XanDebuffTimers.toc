@@ -3,7 +3,7 @@
 ## Notes: A small text based progress bar system for target debuffs.
 ## Notes-zhCN: 一个基于文本的小进度条系统，用于显示目标 debuff。
 ## Author: Xruptor
-## Version: 7.1
+## Version: 7.2
 ## IconTexture: 900319
 ## X-Curse-Project-ID: 22071
 ## X-WoWI-ID: 15683

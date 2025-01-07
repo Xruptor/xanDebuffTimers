@@ -453,7 +453,6 @@ addon:SetScript("OnUpdate", function(self, elapsed)
 		addon:ShowDebuffs("focus")
 	end
 
-
 end)
 
 function addon:ProcessDebuffs(id)
@@ -461,6 +460,11 @@ function addon:ProcessDebuffs(id)
 	if XDT_DB.hideInRestedAreas and IsResting() then return end
 
 	local sdTimer = timerList[id] --makes things easier to read
+
+	if UnitIsDeadOrGhost(id) then
+		addon:ClearDebuffs(id)
+		return
+	end
 
 	for i=1, addon.MAX_TIMERS do
 		local passChk = false
@@ -573,6 +577,11 @@ function addon:ShowDebuffs(id)
 		sdTimer = addon.timersFocus
 	else
 		locked = false
+		return
+	end
+
+	if UnitIsDeadOrGhost(id) then
+		addon:ClearDebuffs(id)
 		return
 	end
 
