@@ -53,8 +53,8 @@ local locked = false
 local UnitAura = C_UnitAuras.GetAuraDataByIndex
 
 local timerList = {
-	["target"] = addon.timers,
-	["focus"] = addon.timersFocus,
+	target = addon.timers,
+	focus = addon.timersFocus,
 }
 
 local barsLoaded = false
@@ -84,8 +84,6 @@ function addon:EnableAddon()
 	--create our bars
 	addon:generateBars()
 
-	addon:RegisterEvent("PLAYER_UPDATE_RESTING")
-	addon:RegisterEvent("PLAYER_ENTERING_WORLD")
 	addon:RegisterEvent("UNIT_AURA")
 	addon:RegisterEvent("PLAYER_TARGET_CHANGED")
 
@@ -146,17 +144,6 @@ function addon:EnableAddon()
 	DEFAULT_CHAT_FRAME:AddMessage(string.format("|cFF99CC33%s|r [v|cFF20ff20%s|r] loaded:   /xdt", ADDON_NAME, ver or "1.0"))
 end
 
-function addon:PLAYER_UPDATE_RESTING()
-	if XDT_DB.hideInRestedAreas and IsResting() then
-		addon:ReloadDebuffs()
-	end
-end
-function addon:PLAYER_ENTERING_WORLD()
-	if XDT_DB.hideInRestedAreas and IsResting() then
-		addon:ReloadDebuffs()
-	end
-end
-
 function addon:PLAYER_TARGET_CHANGED()
 	addon:ProcessDebuffs("target")
 end
@@ -166,10 +153,59 @@ function addon:PLAYER_FOCUS_CHANGED()
 	addon:ProcessDebuffs("focus")
 end
 
+addon.auraList = {
+	target = {},
+	focus = {},
+}
+local allowedList = {
+	player = true,
+	pet = true,
+	vehicle = true,
+}
+
+local function checkPlayerCasted(auraInfo, unitID)
+	local isPlayer = false
+	local isFullUpdate = not auraInfo or auraInfo.isFullUpdate
+
+	if isFullUpdate then
+		--force a full scan anyways
+		isPlayer = true
+	else
+		if auraInfo then
+			if auraInfo.addedAuras then
+				for _, data in next, auraInfo.addedAuras do
+					--only process Harmful spells that we cast
+					if data.isHarmful and data.sourceUnit and allowedList[data.sourceUnit] then
+						isPlayer = true
+					end
+				end
+			end
+
+			if auraInfo.updatedAuraInstanceIDs then
+				for _, auraInstanceID in next, auraInfo.updatedAuraInstanceIDs do
+					if addon.auraList[unitID][auraInstanceID] then
+						isPlayer = true
+					end
+				end
+			end
+
+			if auraInfo.removedAuraInstanceIDs then
+				for _, auraInstanceID in next, auraInfo.removedAuraInstanceIDs do
+					if addon.auraList[unitID][auraInstanceID] then
+						isPlayer = true
+					end
+				end
+			end
+		end
+	end
+
+	return isPlayer
+end
+
 function addon:UNIT_AURA(event, unit, info)
-	if canFocusT and unit == "focus" then
+	if canFocusT and unit == "focus" and checkPlayerCasted(info, unit) then
 		addon:ProcessDebuffs("focus")
-	elseif unit == "target" then
+	elseif unit == "target" and checkPlayerCasted(info, unit) then
 		addon:ProcessDebuffs("target")
 	end
 end
@@ -396,8 +432,8 @@ function addon:ProcessDebuffBar(data)
 
 	local beforeEnd = data.endTime - GetTime()
 	-- local percentTotal = (beforeEnd / data.durationTime)
-	-- local percentFinal = ceil(percentTotal * 100)
-	-- local barLength = ceil( string.len(BAR_TEXT) * percentTotal )
+	-- local percentFinal = floor(percentTotal * 100)
+	-- local barLength = floor( string.len(BAR_TEXT) * percentTotal )
 
 	--calculate the individual bar segments and make the appropriate calculations
 	local totalDuration = (data.endTime - data.startTime) --total duration of the spell
@@ -457,7 +493,6 @@ end)
 
 function addon:ProcessDebuffs(id)
 	if not barsLoaded then return end
-	if XDT_DB.hideInRestedAreas and IsResting() then return end
 
 	local sdTimer = timerList[id] --makes things easier to read
 
@@ -465,6 +500,9 @@ function addon:ProcessDebuffs(id)
 		addon:ClearDebuffs(id)
 		return
 	end
+
+	--reset our list so it's clean, otherwise we may have carry overs from target swaps and this list can get big
+	addon.auraList[id] = table.wipe(addon.auraList[id] or {})
 
 	for i=1, addon.MAX_TIMERS do
 		local passChk = false
@@ -475,6 +513,8 @@ function addon:ProcessDebuffs(id)
 		sdTimer.debuffs[i].active = false
 
 		if auraData then
+			--add to our global aura list
+			addon.auraList[id][auraData.auraInstanceID] = id
 
 			--only allow infinite debuffs if the user enabled it
 			if XDT_DB.showInfinite then
@@ -541,6 +581,8 @@ function addon:ClearDebuffs(id)
 	local sdTimer = timerList[id] --makes things easier to read
 	local adj = 0
 
+	addon.auraList[id] = table.wipe(addon.auraList[id] or {})
+
 	for i=1, addon.MAX_TIMERS do
 		sdTimer.debuffs[i].active = false
 		sdTimer[i]:Hide()
@@ -553,8 +595,6 @@ function addon:ReloadDebuffs()
 	if canFocusT then
 		addon:ClearDebuffs("focus")
 	end
-
-	if XDT_DB.hideInRestedAreas and IsResting() then return end
 
 	addon:ProcessDebuffs("target")
 	if canFocusT then
@@ -614,8 +654,11 @@ function addon:ShowDebuffs(id)
 		end
 	end
 
+	--don't show if we have this option enabled and we are resting
+	local isRested = XDT_DB.hideInRestedAreas and IsResting()
+
 	for i=1, addon.MAX_TIMERS do
-		if tmpList[i] then
+		if tmpList[i] and not isRested then
 			--display the information
 			---------------------------------------
 			sdTimer[i].Bar:SetText( string.sub(BAR_TEXT, 1, tmpList[i].totalBarLength) )
@@ -649,7 +692,7 @@ function addon:ShowDebuffs(id)
 				sdTimer[i].timetext:SetText("∞")
 				sdTimer[i].Bar:SetTextColor(128/255,128/255,128/255)
 			else
-				sdTimer[i].timetext:SetText(addon:GetTimeText(ceil(tmpList[i].beforeEnd)))
+				sdTimer[i].timetext:SetText(addon:GetTimeText(floor(tmpList[i].beforeEnd)))
 				sdTimer[i].Bar:SetTextColor(addon:getBarColor(tmpList[i].durationTime, tmpList[i].beforeEnd))
 			end
 			---------------------------------------
@@ -727,14 +770,16 @@ function addon:getBarColor(dur, expR)
 end
 
 function addon:GetTimeText(timeLeft)
+	if timeLeft <= 0 then return string.format("%d"..L.TimeSecond, 0) end
+
 	local hours, minutes, seconds = 0, 0, 0
 	if( timeLeft >= 3600 ) then
-		hours = ceil(timeLeft / 3600)
+		hours = floor(timeLeft / 3600)
 		timeLeft = mod(timeLeft, 3600)
 	end
 
 	if( timeLeft >= 60 ) then
-		minutes = ceil(timeLeft / 60)
+		minutes = floor(timeLeft / 60)
 		timeLeft = mod(timeLeft, 60)
 	end
 
@@ -747,6 +792,6 @@ function addon:GetTimeText(timeLeft)
 	elseif seconds > 0 then
 		return string.format("%d"..L.TimeSecond, seconds)
 	else
-		return nil
+		return string.format("%d"..L.TimeSecond, 0)
 	end
 end
