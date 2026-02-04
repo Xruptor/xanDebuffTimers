@@ -1,6 +1,6 @@
 local ADDON_NAME, private = ...
 
-local L = private:NewLocale("enUS", true)
+local L = private:NewLocale("esES")
 if not L then return end
 
 L.SlashAnchor = "anchor"

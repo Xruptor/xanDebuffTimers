@@ -1,14 +1,11 @@
 
-local ADDON_NAME, addon = ...
+local ADDON_NAME, private = ...
 if not _G[ADDON_NAME] then
 	_G[ADDON_NAME] = CreateFrame("Frame", ADDON_NAME, UIParent, BackdropTemplateMixin and "BackdropTemplate")
 end
-addon = _G[ADDON_NAME]
-
-local debugf = tekDebug and tekDebug:GetFrame(ADDON_NAME)
-local function Debug(...)
-    if debugf then debugf:AddMessage(string.join(", ", tostringall(...))) end
-end
+local addon = _G[ADDON_NAME]
+addon.private = private
+addon.L = (private and private.L) or addon.L or {}
 
 addon:RegisterEvent("ADDON_LOADED")
 addon:SetScript("OnEvent", function(self, event, ...)
@@ -32,7 +29,7 @@ addon:SetScript("OnEvent", function(self, event, ...)
 	end
 end)
 
-local L = LibStub("AceLocale-3.0"):GetLocale(ADDON_NAME)
+local L = addon.L
 local canFocusT = (FocusUnit and FocusFrame) or false
 
 addon.timers = {}
@@ -48,9 +45,73 @@ local ICON_SIZE = 20
 local BAR_ADJUST = 25
 --40 characters, each worth 2.5 out of 100, to get bar length.  (percent/2.5)  example: 75/2.5 = 30 bar length
 local BAR_TEXT = "llllllllllllllllllllllllllllllllllllllll"
+local BAR_TEXT_LEN = #BAR_TEXT
 local locked = false
 
-local UnitAura = C_UnitAuras.GetAuraDataByIndex
+local WOW_PROJECT_ID = _G.WOW_PROJECT_ID
+local WOW_PROJECT_MAINLINE = _G.WOW_PROJECT_MAINLINE
+local WOW_PROJECT_CLASSIC = _G.WOW_PROJECT_CLASSIC
+local isClassic = (WOW_PROJECT_ID and WOW_PROJECT_CLASSIC and WOW_PROJECT_ID == WOW_PROJECT_CLASSIC) or false
+
+local LibClassicDurations = nil
+if isClassic and LibStub then
+	LibClassicDurations = LibStub("LibClassicDurations", true)
+	if LibClassicDurations and LibClassicDurations.Register then
+		LibClassicDurations:Register(ADDON_NAME)
+	end
+end
+
+local GetAuraDataByIndex = C_UnitAuras and C_UnitAuras.GetAuraDataByIndex
+local AURA_FILTER = "PLAYER|HARMFUL"
+
+local function HasValidTimes(duration, expirationTime)
+	return type(duration) == "number" and duration > 0
+		and type(expirationTime) == "number" and expirationTime > 0
+end
+
+local function BuildAuraFromUnitAura(unit, index, filter, unitAuraFunc)
+	local name, icon, count, debuffType, duration, expirationTime, sourceUnit, isStealable,
+		nameplateShowPersonal, spellId, canApplyAura, isBossDebuff, castByPlayer, nameplateShowAll,
+		timeMod, value1, value2, value3 = unitAuraFunc(unit, index, filter)
+
+	if not name then return nil end
+
+	return {
+		name = name,
+		icon = icon,
+		applications = count,
+		duration = duration,
+		expirationTime = expirationTime,
+		sourceUnit = sourceUnit,
+		spellId = spellId,
+		isHarmful = true,
+	}
+end
+
+local function GetAuraData(unit, index, filter)
+	if GetAuraDataByIndex then
+		local auraData = GetAuraDataByIndex(unit, index, filter)
+		if auraData and isClassic and LibClassicDurations and LibClassicDurations.UnitAuraWrapper
+			and not HasValidTimes(auraData.duration, auraData.expirationTime) then
+			local lcdAura = BuildAuraFromUnitAura(unit, index, filter, LibClassicDurations.UnitAuraWrapper)
+			if lcdAura and HasValidTimes(lcdAura.duration, lcdAura.expirationTime) then
+				return lcdAura
+			end
+		end
+		return auraData
+	end
+
+	-- Classic/legacy API fallback
+	local auraData = BuildAuraFromUnitAura(unit, index, filter, UnitAura)
+	if auraData and isClassic and LibClassicDurations and LibClassicDurations.UnitAuraWrapper
+		and not HasValidTimes(auraData.duration, auraData.expirationTime) then
+		local lcdAura = BuildAuraFromUnitAura(unit, index, filter, LibClassicDurations.UnitAuraWrapper)
+		if lcdAura then
+			return lcdAura
+		end
+	end
+	return auraData
+end
 
 local timerList = {
 	target = addon.timers,
@@ -300,7 +361,7 @@ function addon:CreateDebuffTimers()
     Frm.icon:SetWidth(ICON_SIZE)
     Frm.icon:SetHeight(ICON_SIZE)
 	Frm.icon:SetTexture("Interface\\Icons\\Spell_Shadow_Shadowbolt")
-    Frm.icon:SetAllPoints(true)
+    Frm.icon:SetAllPoints(Frm)
 
     Frm.stacktext = Frm:CreateFontString(nil, "OVERLAY");
     Frm.stacktext:SetFont(STANDARD_TEXT_FONT,10,"OUTLINE")
@@ -322,7 +383,7 @@ function addon:CreateDebuffTimers()
     Frm.spellNameText:SetPoint("RIGHT", Frm.icon, "LEFT" , -5, 0)
 
 	Frm.Bar = Frm:CreateFontString(nil, "OVERLAY")
-	Frm.Bar:SetFont(STANDARD_TEXT_FONT, 14, "OUTLINE, MONOCHROME")
+	Frm.Bar:SetFont(STANDARD_TEXT_FONT, 14, "OUTLINE")
 	Frm.Bar:SetText(BAR_TEXT)
 	Frm.Bar:SetPoint("LEFT", Frm.icon, "RIGHT", 33, 0)
 
@@ -437,9 +498,9 @@ function addon:ProcessDebuffBar(data)
 
 	--calculate the individual bar segments and make the appropriate calculations
 	local totalDuration = (data.endTime - data.startTime) --total duration of the spell
-	local totalBarSegment = (string.len(BAR_TEXT) / totalDuration) --lets get how much each segment of the bar string would value up to 100%
+	local totalBarSegment = (BAR_TEXT_LEN / totalDuration) --lets get how much each segment of the bar string would value up to 100%
 	local totalBarLength = totalBarSegment * beforeEnd --now get the individual bar segment value and multiply it with current duration
-	local barPercent = (totalBarLength / string.len(BAR_TEXT)) * 100
+	local barPercent = (totalBarLength / BAR_TEXT_LEN) * 100
 
 	--100/40 means each segment is 2.5 for 100%
 	--example for 50%   50/100 = 0.5   0.5 / 2.5 = 0.2  (50% divided by segment count) 0.2 * 100 = 20 (which is half of the bar of 40)
@@ -507,14 +568,15 @@ function addon:ProcessDebuffs(id)
 	for i=1, addon.MAX_TIMERS do
 		local passChk = false
 		local isInfinite = false
-		local auraData = UnitAura(id, i, 'PLAYER|HARMFUL')
+		local auraData = GetAuraData(id, i, AURA_FILTER)
 
 		--turn off by default, activate only if we have something
 		sdTimer.debuffs[i].active = false
 
 		if auraData then
 			--add to our global aura list
-			addon.auraList[id][auraData.auraInstanceID] = id
+			local auraKey = auraData.auraInstanceID or i
+			addon.auraList[id][auraKey] = id
 
 			--only allow infinite debuffs if the user enabled it
 			if XDT_DB.showInfinite then
@@ -542,14 +604,14 @@ function addon:ProcessDebuffs(id)
 					barPercent = 200 --anything higher than 100 will get pushed to top of list, so lets make it 200 -> addon:ShowBuffs(id)
 					auraData.duration = 0
 					auraData.expirationTime = 0
-					totalBarLength = string.len(BAR_TEXT) --just make it full bar length, it will never decrease anyways
+					totalBarLength = BAR_TEXT_LEN --just make it full bar length, it will never decrease anyways
 				else
 					beforeEnd = auraData.expirationTime - GetTime()
 					startTime = (auraData.expirationTime - auraData.duration)
 					totalDuration = (auraData.expirationTime - startTime) --total duration of the spell
-					totalBarSegment = (string.len(BAR_TEXT) / totalDuration) --lets get how much each segment of the bar string would value up to 100%
+					totalBarSegment = (BAR_TEXT_LEN / totalDuration) --lets get how much each segment of the bar string would value up to 100%
 					totalBarLength = totalBarSegment * beforeEnd --now get the individual bar segment value and multiply it with current duration
-					barPercent = (totalBarLength / string.len(BAR_TEXT)) * 100
+					barPercent = (totalBarLength / BAR_TEXT_LEN) * 100
 				end
 
 				if barPercent > 0 or beforeEnd > 0 or totalBarLength > 0 then
