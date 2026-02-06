@@ -223,6 +223,29 @@ local allowedList = {
 	pet = true,
 	vehicle = true,
 }
+local issecretvalue = _G.issecretvalue
+local canaccessvalue = _G.canaccessvalue
+
+local function CanAccessValue(value)
+	if issecretvalue and issecretvalue(value) then
+		return canaccessvalue and canaccessvalue(value)
+	end
+	return true
+end
+
+local function SafeTrue(value)
+	if not CanAccessValue(value) then
+		return false
+	end
+	return value == true
+end
+
+local function SafeValue(value)
+	if not CanAccessValue(value) then
+		return nil
+	end
+	return value
+end
 
 local function checkPlayerCasted(auraInfo, unitID)
 	local isPlayer = false
@@ -236,7 +259,8 @@ local function checkPlayerCasted(auraInfo, unitID)
 			if auraInfo.addedAuras then
 				for _, data in next, auraInfo.addedAuras do
 					--only process Harmful spells that we cast
-					if data.isHarmful and data.sourceUnit and allowedList[data.sourceUnit] then
+					local sourceUnit = SafeValue(data.sourceUnit)
+					if SafeTrue(data.isHarmful) and sourceUnit and allowedList[sourceUnit] then
 						isPlayer = true
 					end
 				end
