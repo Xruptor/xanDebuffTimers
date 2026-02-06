@@ -233,7 +233,7 @@ function addon:ShowRetailWarning()
 
 	local frame = CreateFrame("Frame", "XDT_RetailWarningFrame", UIParent, BackdropTemplateMixin and "BackdropTemplate")
 	frame:SetSize(520, 420)
-	frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+	frame:SetPoint("CENTER", UIParent, "CENTER", -260, 0)
 	frame:SetFrameStrata("FULLSCREEN_DIALOG")
 	frame:SetBackdrop({
 		bgFile = "Interface/Tooltips/UI-Tooltip-Background",
