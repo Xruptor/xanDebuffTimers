@@ -12,7 +12,8 @@ L.SlashAnchorInfo = "切换可移动锚点。"
 L.SlashReset = "重置"
 L.SlashResetText = "重置锚点位置"
 L.SlashResetInfo = "重置锚点位置。"
-L.SlashResetAlert = "xanDebuffTimers: 锚点位置已重置！"
+
+L.Reset = "重置"
 
 L.SlashScale = "缩放"
 L.SlashScaleSet = "xanDebuffTimers: 缩放比列设置为 [|cFF20ff20%s|r]"
@@ -49,3 +50,9 @@ L.TimeSecond = "s"
 
 L.BarTargetAnchor = "xanDebuffTimers: 目标锚点"
 L.BarFocusAnchor = "xanDebuffTimers: 焦点锚点"
+
+L.GraphicBarChkBtn = "使用图形化减益条。"
+L.BarColorText = "减益条颜色。"
+
+L.RetailWarningTitle = "警告 请务必阅读!!! 仅限正式服"
+L.RetailWarningBody = "由于 Blizzard 的 API 更改，本插件在正式服已无法正常运作。\n\nBlizzard 现在将战斗相关的光环数据标记为受保护的"秘密值"。这意味着插件在战斗中无法读取或计算 Debuff 持续时间、到期时间等数据。而本插件必须计算剩余时间才能绘制进度条，因此核心功能被客户端直接阻止。\n\n|cFFFFFF00这不是 xanDebuffTimers 的 Bug。|r\n\n|cFFFF2020这是 Blizzard 强制施加的限制。|r\n\n类似的光环/计时插件（例如 WeakAuras 及其他 Buff/Debuff 追踪插件）也遭遇同样问题，无法在正式服中显示准确的战斗计时。\n\n简而言之：正式服阻止了本插件所需的精确数据，因此 Debuff 条无法工作。本插件在 Classic、TBC、Wrath 等非正式服客户端中仍可正常运行。"

@@ -12,7 +12,8 @@ L.SlashAnchorInfo = "Toggles movable anchors."
 L.SlashReset = "reset"
 L.SlashResetText = "Reset Anchor Positions"
 L.SlashResetInfo = "Reset anchor positions."
-L.SlashResetAlert = "xanDebuffTimers: Anchor positions have been reset!"
+
+L.Reset = "초기화"
 
 L.SlashScale = "scale"
 L.SlashScaleSet = "xanDebuffTimers: scale has been set to [|cFF20ff20%s|r]"
@@ -54,3 +55,9 @@ L.IconChkBtn = "Show debuff icons. [|cFF99CC33ON|r]."
 L.SpellNameChkBtn = "Show debuff spell names. [|cFF99CC33ON|r]."
 L.HideInRested = "Hide Debuff Bars when in a Rested Area."
 L.ShowTimerOnRight = "Show the timer on the right of debuff icon."
+
+L.GraphicBarChkBtn = "그래픽 디버프 바 사용."
+L.BarColorText = "디버프 바 색상."
+
+L.RetailWarningTitle = "경고 꼭 읽어주세요!!! 리테일 전용"
+L.RetailWarningBody = "이 애드온은 Blizzard의 API 변경으로 인해 Retail에서 더 이상 작동할 수 없습니다.\n\nBlizzard는 전투 관련 오라 데이터를 보호된 "신중한 값"으로 표시합니다. 즉, 전투 중에는 디버프 지속 시간과 만료 시간 등 전투 데이터를 애드온이 읽거나 계산할 수 없습니다. 이 애드온은 남은 시간을 계산해 바를 그려야 하므로, 핵심 기능이 클라이언트 자체에서 차단됩니다.\n\n|cFFFFFF00이것은 xanDebuffTimers의 버그가 아니에요.|r\n\n|cFFFF2020Blizzard가 제한한 제약 사항입니다.|r\n\nWeakAuras 등 다른 유사한 오라/타이머 애드온도 같은 문제를 겪고 있으며, Retail에서 정확한 전투 타이머를 표시할 수 없습니다.\n\n요약: Retail은 이 애드온이 필요로 하는 정확한 데이터에 접근하지 못하게 하므로, 디버프 바가 작동하지 않습니다. 이 애드온은 Classic, TBC, Wrath 등 비-Retail 클라이언트에서는 정상 작동합니다."

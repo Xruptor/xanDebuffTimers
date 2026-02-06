@@ -12,7 +12,8 @@ L.SlashAnchorInfo = "Toggles movable anchors."
 L.SlashReset = "reset"
 L.SlashResetText = "Reset Anchor Positions"
 L.SlashResetInfo = "Reset anchor positions."
-L.SlashResetAlert = "xanDebuffTimers: Anchor positions have been reset!"
+
+L.Reset = "Ripristino"
 
 L.SlashScale = "scale"
 L.SlashScaleSet = "xanDebuffTimers: scale has been set to [|cFF20ff20%s|r]"
@@ -54,3 +55,9 @@ L.IconChkBtn = "Show debuff icons. [|cFF99CC33ON|r]."
 L.SpellNameChkBtn = "Show debuff spell names. [|cFF99CC33ON|r]."
 L.HideInRested = "Hide Debuff Bars when in a Rested Area."
 L.ShowTimerOnRight = "Show the timer on the right of debuff icon."
+
+L.GraphicBarChkBtn = "Usa barre grafiche dei debilitazioni."
+L.BarColorText = "Colore della barra di debilitazione."
+
+L.RetailWarningTitle = "AVVISO SI PREGA DI LEGGERE!!! SOLO RETAIL"
+L.RetailWarningBody = "Questo addon non può più funzionare su Retail a causa dei cambiamenti API di Blizzard.\n\nBlizzard ora contrassegna i dati delle aure in combattimento come "valori segreti" protetti. Ciò significa che gli addon non possono leggere o calcolare le durate dei debuff, i tempi di scadenza o altri dati di combattimento mentre sei in combattimento. Poiché questo addon deve calcolare il tempo rimanente per disegnare le barre, la funzionalità principale viene bloccata dal client stesso.\n\n|cFFFFFF00Questo non è un bug di xanDebuffTimers.|r\n\n|cFFFF2020È una restrizione imposta da Blizzard.|r\n\nAddon simili di aure/timer (ad esempio WeakAuras e altri tracker di buffs/debuffs) hanno lo stesso problema e non possono mostrare timer accurati su Retail.\n\nIn breve: Retail blocca l’accesso ai dati esatti di cui questo addon ha bisogno, quindi le barre dei debuff non funzioneranno. Questo addon rimane pienamente funzionante su Classic, TBC, Wrath e altri client non-Retail."

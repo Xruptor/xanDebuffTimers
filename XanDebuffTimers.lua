@@ -47,11 +47,13 @@ local BAR_ADJUST = 25
 local BAR_TEXT = "llllllllllllllllllllllllllllllllllllllll"
 local BAR_TEXT_LEN = #BAR_TEXT
 local locked = false
+local TIMER_TEXT_PADDING = 8
 
 local WOW_PROJECT_ID = _G.WOW_PROJECT_ID
 local WOW_PROJECT_MAINLINE = _G.WOW_PROJECT_MAINLINE
 local WOW_PROJECT_CLASSIC = _G.WOW_PROJECT_CLASSIC
 local isClassic = (WOW_PROJECT_ID and WOW_PROJECT_CLASSIC and WOW_PROJECT_ID == WOW_PROJECT_CLASSIC) or false
+local isRetail = (WOW_PROJECT_ID and WOW_PROJECT_MAINLINE and WOW_PROJECT_ID == WOW_PROJECT_MAINLINE) or false
 
 local LibClassicDurations = nil
 if isClassic and LibStub then
@@ -135,6 +137,10 @@ function addon:EnableAddon()
 	if XDT_DB.showSpellName == nil then XDT_DB.showSpellName = false end
 	if XDT_DB.hideInRestedAreas == nil then XDT_DB.hideInRestedAreas = false end
 	if XDT_DB.showTimerOnRight == nil then XDT_DB.showTimerOnRight = true end
+	if XDT_DB.useGraphicBar == nil then XDT_DB.useGraphicBar = false end
+	if XDT_DB.barColor == nil then XDT_DB.barColor = { r = 0.75, g = 0, b = 0 } end
+	if XDT_DB.showRetailWarning == nil then XDT_DB.showRetailWarning = true end
+	if XDT_DB.retailWarningCount == nil then XDT_DB.retailWarningCount = 0 end
 
 	--create our anchors
 	addon:CreateAnchor("XDT_Anchor", UIParent, L.BarTargetAnchor)
@@ -144,6 +150,11 @@ function addon:EnableAddon()
 
 	--create our bars
 	addon:generateBars()
+
+	if isRetail then
+		XDT_DB.retailWarningCount = (XDT_DB.retailWarningCount or 0) + 1
+		addon:ShowRetailWarning()
+	end
 
 	addon:RegisterEvent("UNIT_AURA")
 	addon:RegisterEvent("PLAYER_TARGET_CHANGED")
@@ -214,6 +225,67 @@ function addon:PLAYER_FOCUS_CHANGED()
 	addon:ProcessDebuffs("focus")
 end
 
+function addon:ShowRetailWarning()
+	if not isRetail then return end
+	if not XDT_DB or XDT_DB.showRetailWarning == false then return end
+	local count = XDT_DB.retailWarningCount or 0
+	if not (count == 1 or (count % 3 == 0)) then return end
+
+	local frame = CreateFrame("Frame", "XDT_RetailWarningFrame", UIParent, BackdropTemplateMixin and "BackdropTemplate")
+	frame:SetSize(520, 420)
+	frame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+	frame:SetFrameStrata("FULLSCREEN_DIALOG")
+	frame:SetBackdrop({
+		bgFile = "Interface/Tooltips/UI-Tooltip-Background",
+		edgeFile = "Interface/Tooltips/UI-Tooltip-Border",
+		tile = true,
+		tileSize = 16,
+		edgeSize = 16,
+		insets = { left = 5, right = 5, top = 5, bottom = 5 }
+	})
+	frame:SetBackdropColor(0, 0, 0, 0.85)
+
+	frame.addonTitle = frame:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+	frame.addonTitle:SetPoint("TOP", frame, "TOP", 0, -12)
+	frame.addonTitle:SetTextColor(0.2, 1, 0.2)
+	frame.addonTitle:SetText(ADDON_NAME)
+
+	frame.title = frame:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+	frame.title:SetPoint("TOP", frame.addonTitle, "BOTTOM", 0, -18)
+	frame.title:SetTextColor(1, 0.2, 0.2)
+	frame.title:SetText(L.RetailWarningTitle or "WARNING PLEASE READ!!!  RETAIL ONLY")
+
+	local scrollFrame = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
+	scrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 16, -92)
+	scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -36, 52)
+
+	local content = CreateFrame("Frame", nil, scrollFrame)
+	content:SetSize(1, 1)
+	scrollFrame:SetScrollChild(content)
+
+	frame.body = content:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+	frame.body:SetJustifyH("LEFT")
+	frame.body:SetJustifyV("TOP")
+	frame.body:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
+	frame.body:SetWidth(440)
+	frame.body:SetText(L.RetailWarningBody or "")
+
+	local height = frame.body:GetStringHeight()
+	if height and height > 0 then
+		content:SetHeight(height + 10)
+	end
+
+	frame.okBTN = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
+	frame.okBTN:SetText(OKAY)
+	frame.okBTN:SetSize(100, 30)
+	frame.okBTN:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -16, 16)
+	frame.okBTN:SetScript("OnClick", function()
+		frame:Hide()
+	end)
+
+	frame:Show()
+end
+
 addon.auraList = {
 	target = {},
 	focus = {},
@@ -245,6 +317,30 @@ local function SafeValue(value)
 		return nil
 	end
 	return value
+end
+local function TruncateText(fontString, text, maxWidth)
+	if not text or text == "" then return "" end
+	if not maxWidth or maxWidth <= 0 then return "" end
+	fontString:SetText(text)
+	if fontString:GetStringWidth() <= maxWidth then
+		return text
+	end
+	local suffix = "..."
+	local left = 1
+	local right = #text
+	local best = ""
+	while left <= right do
+		local mid = math.floor((left + right) / 2)
+		local candidate = string.sub(text, 1, mid) .. suffix
+		fontString:SetText(candidate)
+		if fontString:GetStringWidth() <= maxWidth then
+			best = candidate
+			left = mid + 1
+		else
+			right = mid - 1
+		end
+	end
+	return best
 end
 
 local function checkPlayerCasted(auraInfo, unitID)
@@ -288,9 +384,9 @@ local function checkPlayerCasted(auraInfo, unitID)
 end
 
 function addon:UNIT_AURA(event, unit, info)
-	if canFocusT and unit == "focus" and checkPlayerCasted(info, unit) then
+	if canFocusT and unit == "focus" then
 		addon:ProcessDebuffs("focus")
-	elseif unit == "target" and checkPlayerCasted(info, unit) then
+	elseif unit == "target" then
 		addon:ProcessDebuffs("target")
 	end
 end
@@ -377,6 +473,7 @@ function addon:CreateDebuffTimers()
     Frm:SetWidth(ICON_SIZE)
     Frm:SetHeight(ICON_SIZE)
 	Frm:SetFrameStrata("LOW")
+	Frm:SetFrameLevel(2)
 
 	addon:SetAddonScale(XDT_DB.scale, true)
 
@@ -402,14 +499,32 @@ function addon:CreateDebuffTimers()
 
     Frm.spellNameText = Frm:CreateFontString(nil, "OVERLAY");
     Frm.spellNameText:SetFont(STANDARD_TEXT_FONT,10,"OUTLINE")
-	Frm.spellNameText:SetTextColor(239/255,70/255,0)
+	Frm.spellNameText:SetTextColor(1,1,1)
     Frm.spellNameText:SetJustifyH("RIGHT")
     Frm.spellNameText:SetPoint("RIGHT", Frm.icon, "LEFT" , -5, 0)
+	Frm.spellNameText:SetWordWrap(false)
+	Frm.spellNameText:SetNonSpaceWrap(true)
 
 	Frm.Bar = Frm:CreateFontString(nil, "OVERLAY")
 	Frm.Bar:SetFont(STANDARD_TEXT_FONT, 14, "OUTLINE")
 	Frm.Bar:SetText(BAR_TEXT)
 	Frm.Bar:SetPoint("LEFT", Frm.icon, "RIGHT", 33, 0)
+
+	Frm.graphBar = CreateFrame("StatusBar", nil, Frm)
+	Frm.graphBar:SetStatusBarTexture("Interface\\AddOns\\xanDebuffTimers\\media\\HalT")
+	Frm.graphBar:SetMinMaxValues(0, 1)
+	Frm.graphBar:SetValue(1)
+	Frm.graphBar:SetHeight(ICON_SIZE - 2)
+	Frm.graphBar:SetFrameLevel(math.max(1, Frm:GetFrameLevel() - 1))
+	do
+		local barWidth = Frm.Bar:GetStringWidth()
+		if not barWidth or barWidth <= 0 then barWidth = 120 end
+		Frm.graphBar:SetWidth(barWidth + 8)
+	end
+	Frm.graphBar.bg = Frm.graphBar:CreateTexture(nil, "BACKGROUND")
+	Frm.graphBar.bg:SetAllPoints(Frm.graphBar)
+	Frm.graphBar.bg:SetColorTexture(0, 0, 0, 0.5)
+	Frm.graphBar:Hide()
 
 	Frm:Hide()
 
@@ -446,6 +561,27 @@ function addon:adjustTextAlignment(sdTimer)
 	sdTimer.timetext:ClearAllPoints()
 	sdTimer.Bar:ClearAllPoints()
 	sdTimer.spellNameText:ClearAllPoints()
+	if sdTimer.graphBar then
+		sdTimer.graphBar:ClearAllPoints()
+	end
+
+	if XDT_DB.useGraphicBar and sdTimer.graphBar then
+		sdTimer.Bar:Hide()
+		sdTimer.graphBar:Show()
+		sdTimer.spellNameText:SetJustifyH("LEFT")
+		if XDT_DB.showIcon then
+			sdTimer.graphBar:SetPoint("LEFT", sdTimer.icon, "RIGHT", 5, 0)
+		else
+			sdTimer.graphBar:SetPoint("LEFT", sdTimer, "LEFT", 0, 0)
+		end
+		sdTimer.spellNameText:SetPoint("LEFT", sdTimer.graphBar, "LEFT", 4, 0)
+		sdTimer.timetext:SetPoint("RIGHT", sdTimer.graphBar, "RIGHT", -4, 0)
+		return
+	elseif sdTimer.graphBar then
+		sdTimer.graphBar:Hide()
+		sdTimer.Bar:Show()
+		sdTimer.spellNameText:SetJustifyH("RIGHT")
+	end
 
 	if XDT_DB.showIcon then
 		if XDT_DB.showTimerOnRight then
@@ -598,20 +734,17 @@ function addon:ProcessDebuffs(id)
 		sdTimer.debuffs[i].active = false
 
 		if auraData then
-			--add to our global aura list
 			local auraKey = auraData.auraInstanceID or i
 			addon.auraList[id][auraKey] = id
 
 			--only allow infinite debuffs if the user enabled it
 			if XDT_DB.showInfinite then
-				--auras are on so basically were allowing everything
 				passChk = true
 				if not auraData.duration or auraData.duration <= 0 or not auraData.expirationTime or auraData.expirationTime <= 0 then
 					isInfinite = true
 				end
 			end
 			if not XDT_DB.showInfinite and auraData.duration and auraData.duration > 0 then
-				--auras are not on but the duration is greater then zero, so allow
 				passChk = true
 			end
 
@@ -625,21 +758,20 @@ function addon:ProcessDebuffs(id)
 				local barPercent = 0
 
 				if isInfinite then
-					barPercent = 200 --anything higher than 100 will get pushed to top of list, so lets make it 200 -> addon:ShowBuffs(id)
+					barPercent = 200
 					auraData.duration = 0
 					auraData.expirationTime = 0
-					totalBarLength = BAR_TEXT_LEN --just make it full bar length, it will never decrease anyways
+					totalBarLength = BAR_TEXT_LEN
 				else
 					beforeEnd = auraData.expirationTime - GetTime()
 					startTime = (auraData.expirationTime - auraData.duration)
-					totalDuration = (auraData.expirationTime - startTime) --total duration of the spell
-					totalBarSegment = (BAR_TEXT_LEN / totalDuration) --lets get how much each segment of the bar string would value up to 100%
-					totalBarLength = totalBarSegment * beforeEnd --now get the individual bar segment value and multiply it with current duration
+					totalDuration = (auraData.expirationTime - startTime)
+					totalBarSegment = (BAR_TEXT_LEN / totalDuration)
+					totalBarLength = totalBarSegment * beforeEnd
 					barPercent = (totalBarLength / BAR_TEXT_LEN) * 100
 				end
 
 				if barPercent > 0 or beforeEnd > 0 or totalBarLength > 0 then
-					--debuffs
 					sdTimer.debuffs[i].id = id
 					sdTimer.debuffs[i].spellName = auraData.name
 					sdTimer.debuffs[i].spellId = auraData.spellId
@@ -747,15 +879,43 @@ function addon:ShowDebuffs(id)
 		if tmpList[i] and not isRested then
 			--display the information
 			---------------------------------------
-			sdTimer[i].Bar:SetText( string.sub(BAR_TEXT, 1, tmpList[i].totalBarLength) )
+			if XDT_DB.useGraphicBar and sdTimer[i].graphBar then
+				local dur = tmpList[i].durationTime
+				local val = tmpList[i].beforeEnd
+				if tmpList[i].isInfinite then
+					dur = 1
+					val = 1
+					sdTimer[i].graphBar:SetStatusBarColor(0.5, 0.5, 0.5)
+				else
+					if not dur or dur <= 0 then dur = 1 end
+					if not val or val < 0 then val = 0 end
+					local clr = XDT_DB.barColor
+					if clr then
+						sdTimer[i].graphBar:SetStatusBarColor(clr.r or 1, clr.g or 0, clr.b or 0)
+					else
+						sdTimer[i].graphBar:SetStatusBarColor(addon:getBarColor(dur, val))
+					end
+				end
+				sdTimer[i].graphBar:SetMinMaxValues(0, dur)
+				sdTimer[i].graphBar:SetValue(val)
+			else
+				sdTimer[i].Bar:SetText( string.sub(BAR_TEXT, 1, tmpList[i].totalBarLength) )
+			end
+
+			if tmpList[i].isInfinite then
+				sdTimer[i].timetext:SetText("∞")
+				if not XDT_DB.useGraphicBar then
+					sdTimer[i].Bar:SetTextColor(128/255,128/255,128/255)
+				end
+			else
+				sdTimer[i].timetext:SetText(addon:GetTimeText(floor(tmpList[i].beforeEnd)))
+				if not XDT_DB.useGraphicBar then
+					sdTimer[i].Bar:SetTextColor(addon:getBarColor(tmpList[i].durationTime, tmpList[i].beforeEnd))
+				end
+			end
 
 			if XDT_DB.showIcon then
 				sdTimer[i].icon:SetTexture(tmpList[i].iconTex)
-				if XDT_DB.showSpellName then
-					sdTimer[i].spellNameText:SetText(tmpList[i].spellName)
-				else
-					sdTimer[i].spellNameText:SetText("")
-				end
 				if tmpList[i].stacks > 0 then
 					sdTimer[i].stacktext:SetText(tmpList[i].stacks)
 				else
@@ -764,22 +924,26 @@ function addon:ShowDebuffs(id)
 			else
 				sdTimer[i].icon:SetTexture(nil)
 				sdTimer[i].stacktext:SetText(nil)
-				if XDT_DB.showSpellName then
-					if tmpList[i].stacks > 0 then
-						sdTimer[i].spellNameText:SetText(tmpList[i].spellName.." ["..tmpList[i].stacks.."]")
-					else
-						sdTimer[i].spellNameText:SetText(tmpList[i].spellName)
-					end
-				else
-					sdTimer[i].spellNameText:SetText("")
-				end
 			end
-			if tmpList[i].isInfinite then
-				sdTimer[i].timetext:SetText("∞")
-				sdTimer[i].Bar:SetTextColor(128/255,128/255,128/255)
+			if XDT_DB.showSpellName then
+				local spellText = tmpList[i].spellName or ""
+				if tmpList[i].stacks > 0 then
+					spellText = "["..tmpList[i].stacks.."] "..spellText
+				end
+				local barWidth = 0
+				if XDT_DB.useGraphicBar and sdTimer[i].graphBar and sdTimer[i].graphBar:IsShown() then
+					barWidth = sdTimer[i].graphBar:GetWidth() or 0
+				else
+					barWidth = sdTimer[i].Bar:GetStringWidth() or 0
+				end
+				if barWidth <= 0 then barWidth = 120 end
+				local timerWidth = sdTimer[i].timetext:GetStringWidth() or 0
+				local maxWidth = barWidth - timerWidth - TIMER_TEXT_PADDING
+				sdTimer[i].spellNameText:SetWidth(math.max(10, maxWidth))
+				local finalText = TruncateText(sdTimer[i].spellNameText, spellText, maxWidth)
+				sdTimer[i].spellNameText:SetText(finalText)
 			else
-				sdTimer[i].timetext:SetText(addon:GetTimeText(floor(tmpList[i].beforeEnd)))
-				sdTimer[i].Bar:SetTextColor(addon:getBarColor(tmpList[i].durationTime, tmpList[i].beforeEnd))
+				sdTimer[i].spellNameText:SetText("")
 			end
 			---------------------------------------
 
