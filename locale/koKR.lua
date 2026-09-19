@@ -59,5 +59,9 @@ L.ShowTimerOnRight = "Show the timer on the right of debuff icon."
 L.GraphicBarChkBtn = "그래픽 디버프 바 사용."
 L.BarColorText = "디버프 바 색상."
 
-L.RetailWarningTitle = "경고 꼭 읽어주세요!!! 리테일 전용"
-L.RetailWarningBody = "이 애드온은 Blizzard의 API 변경으로 인해 Retail에서 더 이상 작동할 수 없습니다.\n\nBlizzard는 전투 관련 오라 데이터를 보호된 \"신중한 값\"으로 표시합니다. 즉, 전투 중에는 디버프 지속 시간과 만료 시간 등 전투 데이터를 애드온이 읽거나 계산할 수 없습니다. 이 애드온은 남은 시간을 계산해 바를 그려야 하므로, 핵심 기능이 클라이언트 자체에서 차단됩니다.\n\n|cFFFFFF00이것은 xanDebuffTimers의 버그가 아니에요.|r\n\n|cFFFF2020Blizzard가 제한한 제약 사항입니다.|r\n\nWeakAuras 등 다른 유사한 오라/타이머 애드온도 같은 문제를 겪고 있으며, Retail에서 정확한 전투 타이머를 표시할 수 없습니다.\n\n요약: Retail은 이 애드온이 필요로 하는 정확한 데이터에 접근하지 못하게 하므로, 디버프 바가 작동하지 않습니다. 이 애드온은 Classic, TBC, Wrath 등 비-Retail 클라이언트에서는 정상 작동합니다."
+L.NoTimerBarsOn = "xanDebuffTimers: 타이머 데이터를 사용할 수 없을 때 회색 \226\136\158 막대 표시. [|cFF99CC33ON|r]"
+L.NoTimerBarsOff = "xanDebuffTimers: 타이머 데이터를 사용할 수 없을 때 회색 \226\136\158 막대 표시. [|cFF99CC33OFF|r]"
+L.NoTimerBarsChkBtn = "타이머 데이터를 사용할 수 없을 때 회색 \226\136\158 막대 표시."
+
+L.RetailWarningTitle = "리테일 (미드나이트) — 꼭 읽어주세요"
+L.RetailWarningBody = "xanDebuffTimers는 이제 리테일 지원이 향상되었지만, 동작은 위치에 따라 달라집니다:\n\n|cFF00FF00오픈 월드 / 전장:|r\n완전히 작동합니다. 디버프 아이콘, 타이머, 바가 정상적으로 표시됩니다.\n\n|cFFFFFF00인스턴스 / 레이드 / 투기장:|r\n디버프 아이콘과 이름은 계속 표시되지만, Blizzard가 이런 환경에서 타이밍 데이터 접근을 제한하기 때문에 타이머 바는 |cFFFFFFFF\226\136\158|r (무한대)로 표시됩니다. Blizzard 내부 허용 목록에 있는 주문은 인스턴스에서도 전체 타이머를 표시합니다 — 이 목록은 점점 늘어나고 있습니다.\n\n|cFFFF2020이것은 Blizzard의 제한 사항 (\"비밀 값\")이며, 버그가 아닙니다.|r\n\n이 제한으로 인해 애드온이 충돌하지 않습니다 — 타이밍 데이터를 사용할 수 없을 때 아이콘만 표시되는 방식으로 자동 전환됩니다.\n\n이 애드온은 이러한 제한이 적용되지 않는 모든 클래식 클라이언트 (에라, SoD, 카타, 격분)에서 완전히 작동합니다."

@@ -44,6 +44,10 @@ L.SlashInfiniteOff = "xanDebuffTimers: Show debuffs whom have no durations/timer
 L.SlashInfiniteInfo = "Toggle debuffs whom have no durations/timers or are infinite. (|cFF99CC33ON/OFF|r)."
 L.SlashInfiniteChkBtn = "Show debuffs whom have no durations/timers or are infinite. [|cFF99CC33ON|r]."
 
+L.NoTimerBarsOn = "xanDebuffTimers: Show gray \226\136\158 bars when timer data is unavailable. [|cFF99CC33ON|r]"
+L.NoTimerBarsOff = "xanDebuffTimers: Show gray \226\136\158 bars when timer data is unavailable. [|cFF99CC33OFF|r]"
+L.NoTimerBarsChkBtn = "Show gray \226\136\158 bars when timer data is unavailable."
+
 L.TimeHour = "h"
 L.TimeMinute = "m"
 L.TimeSecond = "s"
@@ -57,5 +61,5 @@ L.HideInRested = "Hide Debuff Bars when in a Rested Area."
 L.ShowTimerOnRight = "Show the timer on the right of debuff icon."
 L.GraphicBarChkBtn = "Use graphical debuff bars."
 L.BarColorText = "Debuff bar color."
-L.RetailWarningTitle = "WARNING PLEASE READ!!!  RETAIL ONLY"
-L.RetailWarningBody = "This addon can no longer function on Retail due to Blizzard's API changes.\n\nBlizzard now marks combat-related aura data as protected \"secret values\". That means addons cannot read or perform calculations on debuff durations, expiration times, or other combat data while you are in combat. Because this addon must calculate time remaining to draw bars, the core functionality is blocked by the client itself.\n\n|cFFFFFF00This is not a bug in xanDebuffTimers.|r\n\n|cFFFF2020It is a restriction enforced by Blizzard.|r\n\nSimilar aura/timer addons (for example, WeakAuras and other buff/debuff trackers) have hit the same wall and cannot show accurate combat timers on Retail.\n\nIn short: Retail disables access to the exact data this addon needs, so debuff bars will not work there. This addon remains fully functional on Classic-era, TBC, Wrath, and other non-Retail clients where those restrictions do not exist."
+L.RetailWarningTitle = "RETAIL (MIDNIGHT) — PLEASE READ"
+L.RetailWarningBody = "xanDebuffTimers now has improved Retail support, but behaviour depends on where you are:\n\n|cFF00FF00OPEN WORLD / BATTLEGROUNDS:|r\nFully functional. Debuff icons, timers, and bars all display normally.\n\n|cFFFFFF00INSTANCES / RAIDS / ARENAS:|r\nDebuff icons and names are still shown, but timer bars display as |cFFFFFFFF\226\136\158|r (infinity) because Blizzard restricts access to timing data in these contexts. Spells on Blizzard's internal whitelist will show full timers even in instances — this list is gradually expanding.\n\n|cFFFF2020This is a Blizzard restriction (\"secret values\"), not a bug.|r\n\nThe addon will never crash from this restriction — it degrades gracefully to icon-only display when timing data is unavailable.\n\nThis addon remains fully functional on all Classic clients (Era, SoD, Cata, Wrath) where these restrictions do not apply."

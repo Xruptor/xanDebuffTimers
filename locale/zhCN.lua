@@ -54,5 +54,9 @@ L.BarFocusAnchor = "xanDebuffTimers: 焦点锚点"
 L.GraphicBarChkBtn = "使用图形化减益条。"
 L.BarColorText = "减益条颜色。"
 
-L.RetailWarningTitle = "警告 请务必阅读!!! 仅限正式服"
-L.RetailWarningBody = "由于 Blizzard 的 API 更改，本插件在正式服已无法正常运作。\n\nBlizzard 现在将战斗相关的光环数据标记为受保护的\"秘密值\"。这意味着插件在战斗中无法读取或计算 Debuff 持续时间、到期时间等数据。而本插件必须计算剩余时间才能绘制进度条，因此核心功能被客户端直接阻止。\n\n|cFFFFFF00这不是 xanDebuffTimers 的 Bug。|r\n\n|cFFFF2020这是 Blizzard 强制施加的限制。|r\n\n类似的光环/计时插件（例如 WeakAuras 及其他 Buff/Debuff 追踪插件）也遭遇同样问题，无法在正式服中显示准确的战斗计时。\n\n简而言之：正式服阻止了本插件所需的精确数据，因此 Debuff 条无法工作。本插件在 Classic、TBC、Wrath 等非正式服客户端中仍可正常运行。"
+L.NoTimerBarsOn = "xanDebuffTimers: 当计时器数据不可用时显示灰色 \226\136\158 条。[|cFF99CC33开|r]"
+L.NoTimerBarsOff = "xanDebuffTimers: 当计时器数据不可用时显示灰色 \226\136\158 条。[|cFF99CC33关|r]"
+L.NoTimerBarsChkBtn = "当计时器数据不可用时显示灰色 \226\136\158 条。"
+
+L.RetailWarningTitle = "正式服 (午夜) — 请阅读"
+L.RetailWarningBody = "xanDebuffTimers 现已改善对正式服的支持，但功能表现取决于你所在的位置：\n\n|cFF00FF00开放世界 / 战场：|r\n完全正常运作。Debuff 图标、计时器和进度条均正常显示。\n\n|cFFFFFF00副本 / 团队副本 / 竞技场：|r\nDebuff 图标和名称仍会显示，但计时条将显示为 |cFFFFFFFF\226\136\158|r（无限），因为 Blizzard 在这些场景中限制了对时间数据的访问。在 Blizzard 内部白名单上的法术即使在副本中也能显示完整计时器——该白名单正在逐步扩充。\n\n|cFFFF2020这是 Blizzard 的限制（\"秘密值\"），并非插件 Bug。|r\n\n插件不会因此限制而崩溃——当时间数据不可用时，它会自动降级为仅显示图标的模式。\n\n此插件在所有不受这些限制影响的经典版客户端（经典版、SoD、浩劫、巫妖王）上仍可完全正常使用。"
