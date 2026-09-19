@@ -1,9 +1,9 @@
-## Interface: 120105, 110207, 50504, 40402, 38002, 30405, 20506, 16001, 11509
+## Interface: 120100, 110207, 50504, 40402, 38002, 30405, 20506, 16001, 11509
 ## Title: xanDebuffTimers
 ## Notes: A small text based progress bar system for target debuffs.
 ## Notes-zhCN: 一个基于文本的小进度条系统，用于显示目标 debuff。
 ## Author: Xruptor
-## Version: 8.9
+## Version: 8.10
 ## IconTexture: 900319
 ## X-Curse-Project-ID: 22071
 ## X-WoWI-ID: 15683
